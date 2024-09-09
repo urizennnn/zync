@@ -1,0 +1,16 @@
+[package]
+name = "tcshare-ui"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+better-panic = "0.3.0"
+color-eyre = "0.6.3"
+crossterm = "0.28.1"
+human-panic = "2.0.1"
+libc = "0.2.158"
+ratatui = "0.28.1"
+strip-ansi-escapes = "0.2.0"
