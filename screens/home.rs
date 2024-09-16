@@ -1,8 +1,11 @@
 pub mod hello {
+    use ratatui::widgets::BorderType;
+    use ratatui::widgets::Borders;
+    use ratatui::widgets::Paragraph;
     use ratatui::{
         layout::{Constraint, Layout},
-        style::{Style, Stylize},
-        widgets::{Block, Paragraph},
+        style::Style,
+        widgets::Block,
         DefaultTerminal,
     };
     use std::{error::Error, io};
@@ -38,29 +41,44 @@ pub mod hello {
             Ok(())
         }
 
-        /// Function to create a `BigText` object for large text rendering.
-        fn create_big_text() -> BigText<'static> {
-            BigTextBuilder::default()
-                .pixel_size(PixelSize::Quadrant) // Correct usage
-                .lines(["TCSHARE".into()]) // Use a single string for the text
-                .style(Style::default().fg(ratatui::style::Color::Red)) // Apply the style to BigTextBuilder
-                .build() // Build the BigText with the configured properties
+        fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
+            let text = BigTextBuilder::default()
+                .pixel_size(PixelSize::Quadrant)
+                .lines(["TCSHARE".into()])
+                .style(Style::default().fg(ratatui::style::Color::Red))
+                .build();
+            let line = Home::create_line();
+            (text, line)
         }
 
-        /// Function to create regular text as `Line`.
         fn create_line() -> Vec<Line<'static>> {
             let line = "Welcome to TCSHARE. Hit n to start your new file sharing session.";
             let styled_text = Span::styled(line, Style::default().add_modifier(Modifier::BOLD));
             vec![Line::from(styled_text)]
         }
 
-        fn create_title(title: &str) -> Block {
-            Block::default()
-                .title(Span::styled(
-                    title,
-                    Style::default().add_modifier(Modifier::BOLD),
-                ))
-                .borders(ratatui::widgets::Borders::ALL)
+        fn create_border() -> Block<'static> {
+            Block::new()
+                .border_type(BorderType::Rounded)
+                .borders(Borders::TOP)
+                .title(Line::from("Welcome").centered())
+        }
+
+        fn draw_commands(area: Rect, buf: &mut ratatui::prelude::Buffer) {
+            let command_layout = Layout::default()
+                .direction(ratatui::layout::Direction::Horizontal)
+                .constraints([Constraint::Length(10), Constraint::Min(20)])
+                .split(area);
+
+            let label = Paragraph::new("Commands")
+                .style(Style::default().add_modifier(Modifier::BOLD))
+                .alignment(ratatui::layout::Alignment::Left);
+            label.render(command_layout[0], buf);
+
+            let commands_text = "q: Quit | n: Start a new file sharing session";
+            let commands =
+                Paragraph::new(commands_text).alignment(ratatui::layout::Alignment::Right);
+            commands.render(command_layout[1], buf);
         }
 
         pub fn new() -> Self {
@@ -76,21 +94,39 @@ pub mod hello {
 
     impl Widget for &Home {
         fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-            // Layout for different sections
-            let chunks = Layout::default()
-                .constraints([Constraint::Max(10), Constraint::Min(3)].as_ref())
+            let layout = Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(30),
+                    Constraint::Min(10),
+                    Constraint::Length(1),
+                ])
                 .split(area);
 
-            // Render BigText separately
-            let big_text = Home::create_big_text();
-            big_text.render(chunks[0], buf); // Render BigText in the first chunk
+            let border = Home::create_border();
+            border.clone().render(layout[0], buf);
 
-            // Render regular text
-            let paragraph = Paragraph::new(Home::create_line())
-                .block(Home::create_title("Welcome"))
-                .style(Style::default().fg(ratatui::style::Color::Gray));
+            let (big_text, normal_text) = Home::create_big_text();
 
-            paragraph.render(chunks[1], buf); // Render normal text in the second chunk
+            let content_layout = Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints([Constraint::Length(5), Constraint::Length(2)])
+                .split(layout[1]);
+
+            let big_text_width = 30;
+            let big_text_area = Rect {
+                x: area.width.saturating_sub(big_text_width) / 2,
+                y: content_layout[0].y,
+                width: big_text_width,
+                height: content_layout[0].height,
+            };
+            big_text.render(big_text_area, buf);
+
+            let paragraph =
+                Paragraph::new(normal_text).alignment(ratatui::layout::Alignment::Center);
+            paragraph.render(content_layout[1], buf);
+
+            Home::draw_commands(layout[2], buf);
         }
     }
 }
