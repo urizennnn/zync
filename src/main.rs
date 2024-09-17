@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     stdout.execute(EnterAlternateScreen)?;
 
     let tui = ratatui::init();
-    let app = home::hello::Home::new().run(tui);
+    let app = home::homepage::Home::default().run(tui);
     restore_tui()?;
     app
 }
