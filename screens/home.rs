@@ -82,8 +82,8 @@ pub mod homepage {
                     Line::from("Are you an admin?"),
                     Line::from("This will grant you additional privileges."),
                 ])
-                .with_yes_button(ButtonLabel::from("(Y)es").unwrap())
-                .with_no_button(ButtonLabel::from("(N)o").unwrap())
+                .with_yes_button(ButtonLabel::YES.clone())
+                .with_no_button(ButtonLabel::NO.clone())
                 .with_yes_button_selected(false)
                 .with_listener(Some(self.popup_tx.clone()));
             self.confirm_popup = self.confirm_popup.open();
