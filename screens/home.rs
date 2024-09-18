@@ -1,34 +1,23 @@
 pub mod homepage {
-    use ratatui::widgets::BorderType;
-    use ratatui::widgets::Borders;
-    use ratatui::widgets::Paragraph;
-    use ratatui::{
-        layout::{Constraint, Layout},
-        style::Style,
-        widgets::Block,
-        DefaultTerminal,
-    };
-    use std::{error::Error, io};
-    use tui_big_text::{BigText, BigTextBuilder, PixelSize};
-    use tui_confirm_dialog::ButtonLabel;
-    use tui_confirm_dialog::ConfirmDialogState;
-    use tui_confirm_dialog::Listener;
-
     use crossterm::event::{self, Event, KeyCode};
+    use ratatui::text::{Line, Span};
+    use ratatui::DefaultTerminal;
     use ratatui::{
-        layout::Rect,
-        style::Modifier,
-        text::{Line, Span},
-        widgets::Widget,
+        layout::{Constraint, Layout, Rect},
+        style::{Modifier, Style},
+        widgets::{Block, Borders, Paragraph, Widget},
     };
+    use std::sync::mpsc::{self};
+    use std::{error::Error, io};
+    use tui_big_text::{BigText, BigTextBuilder};
+    use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
-    #[derive(Debug)]
     pub struct Home {
-        pub selected_button: usize,
         running: bool,
         pub show_popup: bool,
-        pub popup_tx: std::sync::mpsc::Sender<Listener>,
-        pub popup_rx: std::sync::mpsc::Receiver<Listener>,
+        pub selected_button: usize,
+        pub popup_tx: mpsc::Sender<Listener>,
+        pub popup_rx: mpsc::Receiver<Listener>,
         pub popup_dialog: ConfirmDialogState,
     }
 
@@ -38,6 +27,9 @@ pub mod homepage {
                 match key.code {
                     KeyCode::Char('q') => {
                         if self.show_popup {
+                            self.popup_tx
+                                .send((self.selected_button as u16, Some(false)))
+                                .unwrap();
                             self.show_popup = false;
                         } else {
                             self.running = false;
@@ -47,29 +39,33 @@ pub mod homepage {
                         self.show_popup = true;
                     }
                     KeyCode::Esc => {
+                        self.popup_tx
+                            .send((self.selected_button as u16, Some(false)))
+                            .unwrap();
                         self.show_popup = false;
-                    }
-                    KeyCode::Enter => {
-                        if self.show_popup {
-                            match self.selected_button {
-                                0 => {
-                                    self.show_popup = false;
-                                }
-                                1 => {
-                                    self.show_popup = false;
-                                }
-                                _ => {}
-                            }
-                        }
                     }
                     KeyCode::Right => {
                         if self.show_popup {
                             self.selected_button = 1;
+                            self.popup_tx
+                                .send((self.selected_button as u16, None))
+                                .unwrap();
                         }
                     }
                     KeyCode::Left => {
                         if self.show_popup {
                             self.selected_button = 0;
+                            self.popup_tx
+                                .send((self.selected_button as u16, None))
+                                .unwrap();
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if self.show_popup {
+                            self.popup_tx
+                                .send((self.selected_button as u16, Some(true)))
+                                .unwrap();
+                            self.show_popup = false;
                         }
                     }
                     _ => {}
@@ -80,6 +76,26 @@ pub mod homepage {
 
         pub fn run(mut self, mut term: DefaultTerminal) -> Result<(), Box<dyn Error>> {
             while self.running {
+                if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
+                    match confirmed {
+                        Some(true) => {
+                            if selected_button == 0 {
+                                println!("Confirmed on button Yes");
+                            } else {
+                                println!("Confirmed on button No");
+                            }
+                            self.show_popup = false;
+                        }
+                        Some(false) => {
+                            println!("Cancelled on button {}", selected_button);
+                            self.show_popup = false;
+                        }
+                        None => {
+                            self.selected_button = selected_button as usize;
+                        }
+                    }
+                }
+
                 term.draw(|f| {
                     let area = f.area();
                     self.render(area, f.buffer_mut());
@@ -88,6 +104,7 @@ pub mod homepage {
                         self.render_popup(f);
                     }
                 })?;
+
                 self.handle_events()?;
             }
             Ok(())
@@ -95,7 +112,7 @@ pub mod homepage {
 
         fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
             let text = BigTextBuilder::default()
-                .pixel_size(PixelSize::Quadrant)
+                .pixel_size(tui_big_text::PixelSize::Quadrant)
                 .lines(["TCSHARE".into()])
                 .style(Style::default().fg(ratatui::style::Color::Red))
                 .build();
@@ -111,7 +128,7 @@ pub mod homepage {
 
         fn create_border() -> Block<'static> {
             Block::new()
-                .border_type(BorderType::Rounded)
+                .border_type(ratatui::widgets::BorderType::Rounded)
                 .borders(Borders::TOP)
                 .title(Line::from("Welcome").centered())
         }
@@ -138,7 +155,7 @@ pub mod homepage {
             Self {
                 running: true,
                 show_popup: false,
-                selected_button: 0,
+                selected_button: 1,
                 popup_tx: tx,
                 popup_rx: rx,
                 popup_dialog: ConfirmDialogState::default(),

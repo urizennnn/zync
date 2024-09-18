@@ -1,41 +1,40 @@
 use crate::home::homepage::Home;
+use ratatui::style::{Style, Stylize};
+use ratatui::text::Span;
 use ratatui::widgets::Borders;
 use ratatui::{layout::Rect, text::Line, widgets::Clear, Frame};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
 
 impl Home {
     pub fn render_popup(&mut self, frame: &mut Frame) {
-        // Set up the popup dialog
         self.popup_dialog = ConfirmDialogState::default()
             .modal(false)
-            .with_title("Notification")
+            .with_title(Span::styled("Notification", Style::new().bold().cyan()))
             .with_text(vec![Line::from("Are you an admin?")])
             .with_yes_button(ButtonLabel::from("(Y)es").unwrap())
             .with_no_button(ButtonLabel::from("(N)o").unwrap())
+            .with_yes_button_selected(false)
             .with_listener(Some(self.popup_tx.clone()))
             .open();
 
-        // Define popup area (optional, if you want to calculate custom dimensions)
         let area = self.calculate_popup_area(frame.area(), 50, 30);
+
         if self.popup_dialog.is_opened() {
             let popup = ConfirmDialog::default()
                 .borders(Borders::ALL)
-                .bg(ratatui::style::Color::DarkGray)
+                .bg(ratatui::style::Color::Black)
                 .border_type(ratatui::widgets::BorderType::Rounded)
                 .button_style(ratatui::prelude::Style::default())
                 .selected_button_style(
-                    ratatui::prelude::Style::default().fg(ratatui::style::Color::Yellow),
+                    ratatui::prelude::Style::default().fg(ratatui::style::Color::Green),
                 );
 
-            // Clear the area behind the popup
             frame.render_widget(Clear, area);
 
-            // Render the popup dialog widget
             frame.render_stateful_widget(popup, area, &mut self.popup_dialog);
         }
     }
 
-    #[allow(dead_code)]
     fn calculate_popup_area(&self, area: Rect, percent_x: u16, percent_y: u16) -> Rect {
         let popup_width = area.width * percent_x / 100;
         let popup_height = area.height * percent_y / 100;
