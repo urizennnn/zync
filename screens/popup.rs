@@ -6,14 +6,14 @@ use ratatui::{layout::Rect, text::Line, widgets::Clear, Frame};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
 
 impl Home {
-    pub fn render_popup(&mut self, frame: &mut Frame) {
+    pub fn render_notification(&mut self, frame: &mut Frame) {
         self.popup_dialog = ConfirmDialogState::default()
-            .modal(false)
+            .modal(true)
             .with_title(Span::styled("Notification", Style::new().bold().cyan()))
             .with_text(vec![Line::from("Are you an admin?")])
             .with_yes_button(ButtonLabel::from("(Y)es").unwrap())
             .with_no_button(ButtonLabel::from("(N)o").unwrap())
-            .with_yes_button_selected(false)
+            .with_yes_button_selected(self.selected_button == 0)
             .with_listener(Some(self.popup_tx.clone()))
             .open();
 
@@ -24,9 +24,11 @@ impl Home {
                 .borders(Borders::ALL)
                 .bg(ratatui::style::Color::Black)
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                .button_style(ratatui::prelude::Style::default())
+                .button_style(ratatui::prelude::Style::default()) // Default button style
                 .selected_button_style(
-                    ratatui::prelude::Style::default().fg(ratatui::style::Color::Green),
+                    ratatui::prelude::Style::default()
+                        .fg(ratatui::style::Color::Yellow)
+                        .bold(),
                 );
 
             frame.render_widget(Clear, area);
@@ -49,4 +51,5 @@ impl Home {
             popup_height,
         )
     }
+    pub fn render_text_area() {}
 }

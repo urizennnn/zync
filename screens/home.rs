@@ -12,8 +12,11 @@ pub mod homepage {
     use tui_big_text::{BigText, BigTextBuilder};
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
+    use crate::core::core_lib::check_config;
+
     pub struct Home {
         running: bool,
+        pub show_text_area: bool,
         pub show_popup: bool,
         pub selected_button: usize,
         pub popup_tx: mpsc::Sender<Listener>,
@@ -39,14 +42,19 @@ pub mod homepage {
                         self.show_popup = true;
                     }
                     KeyCode::Esc => {
-                        self.popup_tx
-                            .send((self.selected_button as u16, Some(false)))
-                            .unwrap();
-                        self.show_popup = false;
+                        if self.show_popup {
+                            self.popup_tx
+                                .send((self.selected_button as u16, Some(false)))
+                                .unwrap();
+                            self.show_popup = false;
+                        }
                     }
                     KeyCode::Right => {
                         if self.show_popup {
-                            self.selected_button = 1;
+                            self.selected_button += 1;
+                            if self.selected_button == 2 {
+                                self.selected_button = 0;
+                            }
                             self.popup_tx
                                 .send((self.selected_button as u16, None))
                                 .unwrap();
@@ -54,7 +62,10 @@ pub mod homepage {
                     }
                     KeyCode::Left => {
                         if self.show_popup {
-                            self.selected_button = 0;
+                            self.selected_button -= 1;
+                            if self.selected_button == usize::MAX {
+                                self.selected_button = 1;
+                            }
                             self.popup_tx
                                 .send((self.selected_button as u16, None))
                                 .unwrap();
@@ -96,14 +107,22 @@ pub mod homepage {
                     }
                 }
 
-                term.draw(|f| {
-                    let area = f.area();
-                    self.render(area, f.buffer_mut());
-
-                    if self.show_popup {
-                        self.render_popup(f);
+                match check_config() {
+                    Ok(_) => {
+                        print!("Config file found");
+                        self.running = false;
                     }
-                })?;
+                    Err(_) => {
+                        term.draw(|f| {
+                            let area = f.area();
+                            self.render(area, f.buffer_mut());
+
+                            if self.show_popup {
+                                self.render_notification(f);
+                            }
+                        })?;
+                    }
+                }
 
                 self.handle_events()?;
             }
@@ -126,11 +145,24 @@ pub mod homepage {
             vec![Line::from(styled_text)]
         }
 
-        fn create_border() -> Block<'static> {
+        fn create_border(input: &str, show_popup: bool) -> Block {
+            let title = if show_popup {
+                "Hit Esc to close popup"
+            } else {
+                input
+            };
+
+            let border_style = if show_popup {
+                Style::default().fg(ratatui::style::Color::Yellow)
+            } else {
+                Style::default().fg(ratatui::style::Color::White)
+            };
+
             Block::new()
                 .border_type(ratatui::widgets::BorderType::Rounded)
                 .borders(Borders::TOP)
-                .title(Line::from("Welcome").centered())
+                .title(Line::from(title).centered())
+                .style(border_style)
         }
 
         fn draw_commands(area: Rect, buf: &mut ratatui::prelude::Buffer) {
@@ -153,6 +185,7 @@ pub mod homepage {
         pub fn new() -> Self {
             let (tx, rx) = std::sync::mpsc::channel();
             Self {
+                show_text_area: false,
                 running: true,
                 show_popup: false,
                 selected_button: 1,
@@ -180,7 +213,8 @@ pub mod homepage {
                 ])
                 .split(area);
 
-            let border = Home::create_border();
+            // Pass show_popup state to create_border
+            let border = Home::create_border("Welcome", self.show_popup);
             border.clone().render(layout[0], buf);
 
             let (big_text, normal_text) = Home::create_big_text();
