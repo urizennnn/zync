@@ -1,9 +1,41 @@
+use std::error::Error;
+
 use crate::home::homepage::Home;
+use derive_setters::Setters;
+use ratatui::buffer::Buffer;
 use ratatui::style::{Style, Stylize};
-use ratatui::text::Span;
-use ratatui::widgets::Borders;
+use ratatui::text::{Span, Text};
+use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
 use ratatui::{layout::Rect, text::Line, widgets::Clear, Frame};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
+
+#[derive(Default, Setters)]
+struct ApiPopup<'a> {
+    title: String,
+    message: String,
+    input: Block<'a>,
+    buttons: Vec<String>,
+}
+
+impl Widget for ApiPopup<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let plain_block = Block::default()
+            .title(self.title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(ratatui::style::Color::Yellow));
+        let empty_paragraph = Paragraph::new(self.message)
+            .block(plain_block)
+            .wrap(Wrap { trim: true });
+
+        let input = Block::default()
+            .title("Input")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(ratatui::style::Color::Yellow));
+
+        //create a button that is state ful and should changed the default yes or no to enter once
+        //there is input in the input field
+    }
+}
 
 impl Home {
     pub fn render_notification(&mut self, frame: &mut Frame) {
@@ -51,5 +83,7 @@ impl Home {
             popup_height,
         )
     }
-    pub fn render_text_area() {}
+    pub fn show_api_popup(&mut self, frame: &mut Frame) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
 }

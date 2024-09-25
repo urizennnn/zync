@@ -1158,6 +1158,7 @@ dependencies = [
  "strip-ansi-escapes",
  "tui-big-text",
  "tui-logger",
+ "tui-textarea",
  "tui_confirm_dialog",
  "whoami",
 ]
@@ -1324,6 +1325,17 @@ dependencies = [
  "log",
  "parking_lot",
  "ratatui",
+]
+
+[[package]]
+name = "tui-textarea"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29c07084342a575cea919eea996b9658a358c800b03d435df581c1d7c60e065a"
+dependencies = [
+ "crossterm",
+ "ratatui",
+ "unicode-width",
 ]
 
 [[package]]

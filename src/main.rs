@@ -1,6 +1,6 @@
 use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    ExecutableCommand,
 };
 use std::{
     error::Error,
@@ -17,11 +17,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     color_eyre::install()?;
     install_hook();
-    stdout.execute(EnterAlternateScreen)?;
+    crossterm::execute!(stdout, EnableMouseCapture, EnterAlternateScreen)?;
 
-    let tui = ratatui::init();
+    let backend = ratatui::prelude::CrosstermBackend::new(stdout);
+    let terminal = ratatui::Terminal::new(backend)?;
+    let tui = terminal;
+
     let app = home::homepage::Home::default().run(tui);
+
     restore_tui()?;
+
+    // Borrow mutably from RefCell to access show_cursor
+    // tui.show_cursor()?;
+
     app
 }
 
@@ -36,7 +44,7 @@ pub fn install_hook() {
 
 pub fn restore_tui() -> io::Result<()> {
     let mut stdout = stdout();
-    stdout.execute(LeaveAlternateScreen)?;
+    crossterm::execute!(stdout, LeaveAlternateScreen, DisableMouseCapture)?;
     disable_raw_mode()?;
     Ok(())
 }
@@ -81,5 +89,4 @@ pub fn initialize_panic_handler(
     }
 
     std::process::exit(libc::EXIT_FAILURE);
-    Ok(())
 }

@@ -16,8 +16,9 @@ pub mod homepage {
 
     pub struct Home {
         running: bool,
-        pub show_text_area: bool,
         pub show_popup: bool,
+        pub show_api_popup: bool,
+        pub show_api_dialog: ConfirmDialogState,
         pub selected_button: usize,
         pub popup_tx: mpsc::Sender<Listener>,
         pub popup_rx: mpsc::Receiver<Listener>,
@@ -91,26 +92,22 @@ pub mod homepage {
                     match confirmed {
                         Some(true) => {
                             if selected_button == 0 {
-                                println!("Confirmed on button Yes");
+                                self.show_api_popup = true;
                             } else {
                                 println!("Confirmed on button No");
                             }
                             self.show_popup = false;
                         }
                         Some(false) => {
-                            println!("Cancelled on button {}", selected_button);
                             self.show_popup = false;
                         }
-                        None => {
-                            self.selected_button = selected_button as usize;
-                        }
+                        None => {}
                     }
                 }
 
                 match check_config() {
                     Ok(_) => {
-                        print!("Config file found");
-                        self.running = false;
+                        todo!("Redirect to dashboard screen");
                     }
                     Err(_) => {
                         term.draw(|f| {
@@ -119,6 +116,9 @@ pub mod homepage {
 
                             if self.show_popup {
                                 self.render_notification(f);
+                            }
+                            if self.show_api_popup {
+                                self.show_api_popup(f).unwrap();
                             }
                         })?;
                     }
@@ -185,7 +185,8 @@ pub mod homepage {
         pub fn new() -> Self {
             let (tx, rx) = std::sync::mpsc::channel();
             Self {
-                show_text_area: false,
+                show_api_popup: false,
+                show_api_dialog: ConfirmDialogState::default(),
                 running: true,
                 show_popup: false,
                 selected_button: 1,
