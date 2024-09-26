@@ -7,18 +7,14 @@ pub mod homepage {
         style::{Modifier, Style},
         widgets::{Block, Borders, Paragraph, Widget},
     };
-    use std::borrow::BorrowMut;
-    use std::cell::RefCell;
-    use std::rc::Rc;
     use std::sync::mpsc::{self};
     use std::sync::{Arc, Mutex};
     use std::{error::Error, io};
     use tui_big_text::{BigText, BigTextBuilder};
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
-    use crate::app::app_config_variables::App;
     use crate::core::core_lib::check_config;
-    use crate::popup::ApiPopup;
+    use crate::popup::{ApiPopup, InputBox};
 
     pub struct Home {
         running: bool,
@@ -92,9 +88,8 @@ pub mod homepage {
             Ok(())
         }
 
-        pub fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
+        pub fn run(mut self, mut term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
             while self.running {
-                // Receive popup-related events
                 if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
                     match confirmed {
                         Some(true) => {
@@ -111,9 +106,8 @@ pub mod homepage {
                         None => {}
                     }
                 }
-                let term = Arc::clone(&term);
+                term = Arc::clone(&term);
 
-                // Check configuration and render based on the result
                 match check_config() {
                     Ok(_) => {
                         todo!("Redirect to dashboard screen");
@@ -121,32 +115,20 @@ pub mod homepage {
                     Err(_) => {
                         term.lock().unwrap().draw(|f| {
                             let area = f.area();
-                            self.render(area, f.buffer_mut()); // Render main application area
+                            self.render(area, f.buffer_mut());
 
                             if self.show_popup {
-                                self.render_notification(f); // Render notification if needed
+                                self.render_notification(f);
                             }
 
-                            // Render the API popup if show_api_popup is true
                             if self.show_api_popup {
-                                // Create and configure the ApiPopup
-                                let popup = ApiPopup::default()
-                                    .title("API Popup".to_string())
-                                    .message("Enter API details:".to_string())
-                                    .input(Block::default().borders(Borders::ALL))
-                                    .buttons(vec!["OK".to_string(), "Cancel".to_string()]);
-
-                                // Define the area for the popup, such as a centered portion of the screen
-                                let popup_area = Self::centered_rect(60, 20, area);
-
-                                // Render the popup in the defined area
-                                popup.render(popup_area, f.buffer_mut());
+                                let input = InputBox::default();
+                                input.draw(f);
                             }
                         })?;
                     }
                 }
 
-                // Handle user input and events
                 self.handle_events()?;
             }
             Ok(())
