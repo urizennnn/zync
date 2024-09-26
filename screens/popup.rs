@@ -3,37 +3,60 @@ use std::error::Error;
 use crate::home::homepage::Home;
 use derive_setters::Setters;
 use ratatui::buffer::Buffer;
+use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Style, Stylize};
 use ratatui::text::{Span, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
 use ratatui::{layout::Rect, text::Line, widgets::Clear, Frame};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
+use tui_textarea::TextArea;
 
 #[derive(Default, Setters)]
-struct ApiPopup<'a> {
-    title: String,
-    message: String,
-    input: Block<'a>,
-    buttons: Vec<String>,
+pub struct ApiPopup<'a> {
+    pub title: String,
+    pub message: String,
+    pub input: Block<'a>,
+    pub buttons: Vec<String>,
 }
 
 impl Widget for ApiPopup<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let plain_block = Block::default()
+        // Create the block that will encompass the entire popup
+        let outer_block = Block::default()
             .title(self.title)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(ratatui::style::Color::Yellow));
-        let empty_paragraph = Paragraph::new(self.message)
-            .block(plain_block)
+
+        // Render the outer block, which encompasses everything (message and input)
+        outer_block.render(area, buf);
+
+        // Create layout with two vertical chunks: one for the message, one for the input
+        let chunks = Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                Constraint::Percentage(50), // The message will take the upper 50% of the block
+                Constraint::Percentage(50), // The input will take the lower 50% of the block
+            ])
+            .split(area);
+
+        // Center the message in the upper chunk
+        let centered_message = Paragraph::new(self.message)
+            .alignment(ratatui::layout::Alignment::Center)
             .wrap(Wrap { trim: true });
 
-        let input = Block::default()
-            .title("Input")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(ratatui::style::Color::Yellow));
+        // Render the centered message in the upper chunk
+        centered_message.render(chunks[0], buf);
 
-        //create a button that is state ful and should changed the default yes or no to enter once
-        //there is input in the input field
+        // Render the input area in the lower chunk
+        let mut input = TextArea::default();
+        input.set_block(Block::default().borders(Borders::ALL)); // Set input block with border
+        input.render(chunks[1], buf);
+    }
+}
+
+impl<'a> ApiPopup<'a> {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 

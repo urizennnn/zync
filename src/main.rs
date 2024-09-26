@@ -6,6 +6,7 @@ use std::{
     error::Error,
     io::{self, stdout},
     panic::{take_hook, PanicHookInfo},
+    sync::{Arc, Mutex},
 };
 use tcshare_ui::home;
 
@@ -17,18 +18,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     color_eyre::install()?;
     install_hook();
+
+    let mut backend = Arc::new(Mutex::new(ratatui::init()));
     crossterm::execute!(stdout, EnableMouseCapture, EnterAlternateScreen)?;
 
-    let backend = ratatui::prelude::CrosstermBackend::new(stdout);
-    let terminal = ratatui::Terminal::new(backend)?;
-    let tui = terminal;
-
-    let app = home::homepage::Home::default().run(tui);
+    let app = home::homepage::Home::default().run(backend.clone());
 
     restore_tui()?;
-
-    // Borrow mutably from RefCell to access show_cursor
-    // tui.show_cursor()?;
+    let res = backend.lock().unwrap().show_cursor();
+    match res {
+        Ok(_) => {}
+        Err(err) => {
+            let error_message = format!("App panicked out: {:?}", err);
+            panic!("{error_message}")
+        }
+    }
 
     app
 }
