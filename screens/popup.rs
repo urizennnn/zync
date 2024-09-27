@@ -1,8 +1,4 @@
-use std::borrow::Borrow;
-use std::default;
-
 use crate::home::homepage::Home;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use derive_setters::Setters;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Position};
@@ -51,6 +47,7 @@ impl<'a> ApiPopup<'a> {
     }
 }
 
+pub(crate) static mut FLAG: bool = false;
 #[derive(Debug)]
 pub struct InputBox {
     pub input: String,
@@ -58,17 +55,8 @@ pub struct InputBox {
     pub input_mode: InputMode,
 }
 
-impl std::ops::Deref for InputBox {
-    type Target = InputMode;
-
-    fn deref(&self) -> &Self::Target {
-        &self.input_mode
-    }
-}
-
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq)]
 pub enum InputMode {
-    #[default]
     Normal,
     Editing,
 }
@@ -76,7 +64,7 @@ pub enum InputMode {
 impl InputBox {
     pub fn new() -> Self {
         Self {
-            input_mode: InputMode::Editing,
+            input_mode: InputMode::Normal,
             character_index: 0,
             input: String::new(),
         }
@@ -135,43 +123,15 @@ impl InputBox {
         input_msg
     }
 
-    pub fn handle_input(mut self) {
-        if let Event::Key(key) = event::read().unwrap() {
-            match self.input_mode {
-                InputMode::Normal => match key.code {
-                    KeyCode::Char('e') => {
-                        self.input_mode = InputMode::Editing;
-                    }
-                    KeyCode::Char('q') => {
-                        return; // Expected return type Result<(), Box<dyn Error>>
-                    }
-                    _ => {}
-                },
-                InputMode::Editing if key.kind == KeyEventKind::Press => match key.code {
-                    KeyCode::Enter => {
-                        let output = self.submit_message();
-                        let msg = format!("{:?}", output);
-                        println!("{msg}");
-                    }
-                    KeyCode::Char(to_insert) => self.enter_char(to_insert),
-                    KeyCode::Backspace => self.delete_char(),
-                    KeyCode::Left => self.move_cursor_left(),
-                    KeyCode::Right => self.move_cursor_right(),
-                    KeyCode::Esc => self.input_mode = InputMode::Normal,
-                    _ => {}
-                },
-                InputMode::Editing => {}
-            }
+    pub fn draw(&mut self, frame: &mut Frame) {
+        if unsafe { FLAG } {
+            self.input_mode = InputMode::Editing;
         }
-    }
-
-    pub fn draw(&self, frame: &mut Frame) {
-        let vertical = Layout::vertical([
-            Constraint::Length(1),
-            Constraint::Length(3),
-            Constraint::Min(1),
-        ]);
-        let [help_area, input_area, _messages_area] = vertical.areas(frame.area());
+        if unsafe { !FLAG } {
+            self.input_mode = InputMode::Normal;
+        }
+        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Length(3)]);
+        let [help_area, input_area] = vertical.areas(frame.area());
 
         let (msg, style) = match self.input_mode {
             InputMode::Normal => (
@@ -197,6 +157,7 @@ impl InputBox {
         };
         let text = Text::from(Line::from(msg)).patch_style(style);
         let help_message = Paragraph::new(text);
+        frame.render_widget(Clear, help_area);
         frame.render_widget(help_message, help_area);
 
         let input = Paragraph::new(self.input.as_str())
@@ -207,17 +168,10 @@ impl InputBox {
             .block(Block::bordered().title("Input"));
         frame.render_widget(input, input_area);
         match self.input_mode {
-            // Hide the cursor. `Frame` does this by default, so we don't need to do anything here
             InputMode::Normal => {}
 
-            // Make the cursor visible and ask ratatui to put it at the specified coordinates after
-            // rendering
-            #[allow(clippy::cast_possible_truncation)]
             InputMode::Editing => frame.set_cursor_position(Position::new(
-                // Draw the cursor at the current position in the input field.
-                // This position is can be controlled via the left and right arrow key
                 input_area.x + self.character_index as u16 + 1,
-                // Move one line down, from the border to the input line
                 input_area.y + 1,
             )),
         }

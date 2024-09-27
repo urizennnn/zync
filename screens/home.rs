@@ -14,7 +14,7 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::check_config;
-    use crate::popup::{ApiPopup, InputBox, InputMode};
+    use crate::popup::{InputBox, InputMode, FLAG};
 
     pub struct Home {
         running: bool,
@@ -31,16 +31,20 @@ pub mod homepage {
         pub fn handle_events(&mut self, input_box: &mut InputBox) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
+                    // Handle quitting logic
                     KeyCode::Char('q') => {
                         if self.show_popup {
                             self.popup_tx
                                 .send((self.selected_button as u16, Some(false)))
                                 .unwrap();
                             self.show_popup = false;
+                        } else if self.show_api_popup {
+                            unsafe { FLAG = false };
                         } else {
                             self.running = false;
                         }
                     }
+                    // Handle popup show/hide
                     KeyCode::Char('n') => {
                         self.show_popup = true;
                     }
@@ -50,11 +54,14 @@ pub mod homepage {
                                 .send((self.selected_button as u16, Some(false)))
                                 .unwrap();
                             self.show_popup = false;
-                        }
-                        if input_box.input_mode == InputMode::Editing {
+                        } else if self.show_api_popup {
+                            self.show_api_popup = false;
+                        } else if input_box.input_mode == InputMode::Editing {
                             input_box.input_mode = InputMode::Normal;
+                            unsafe { FLAG = false };
                         }
                     }
+                    // Handle left and right navigation inside popup
                     KeyCode::Right => {
                         if self.show_popup {
                             self.selected_button += 1;
@@ -64,6 +71,8 @@ pub mod homepage {
                             self.popup_tx
                                 .send((self.selected_button as u16, None))
                                 .unwrap();
+                        } else if input_box.input_mode == InputMode::Editing {
+                            input_box.move_cursor_right();
                         }
                     }
                     KeyCode::Left => {
@@ -75,8 +84,11 @@ pub mod homepage {
                             self.popup_tx
                                 .send((self.selected_button as u16, None))
                                 .unwrap();
+                        } else if input_box.input_mode == InputMode::Editing {
+                            input_box.move_cursor_left();
                         }
                     }
+                    // Handle Enter key
                     KeyCode::Enter => {
                         if self.show_popup {
                             self.popup_tx
@@ -84,20 +96,31 @@ pub mod homepage {
                                 .unwrap();
                             self.show_popup = false;
                         } else if input_box.input_mode == InputMode::Editing {
-                            input_box.submit_message();
+                            let api = input_box.submit_message();
+                            println!("{api}");
+                        } else {
+                            let output = input_box.submit_message();
+                            let msg = format!("{:?}", output);
+                            println!("{msg}");
+                        }
+                    }
+                    // Handle character input during editing mode
+                    KeyCode::Char(c) => {
+                        if input_box.input_mode == InputMode::Editing {
+                            input_box.enter_char(c);
+                        } else if c == 'e' {
+                            input_box.input_mode = InputMode::Editing;
+                            unsafe { FLAG = true };
+                        }
+                    }
+                    // Handle backspace key
+                    KeyCode::Backspace => {
+                        if input_box.input_mode == InputMode::Editing {
+                            input_box.delete_char();
                         }
                     }
                     _ => {
-                        // Handle character input for InputBox when in editing mode
-                        if input_box.input_mode == InputMode::Editing {
-                            match key.code {
-                                KeyCode::Char(c) => input_box.enter_char(c),
-                                KeyCode::Backspace => input_box.delete_char(),
-                                KeyCode::Left => input_box.move_cursor_left(),
-                                KeyCode::Right => input_box.move_cursor_right(),
-                                _ => {}
-                            }
-                        }
+                        // Any other keys can be handled here if necessary
                     }
                 }
             }
@@ -149,13 +172,7 @@ pub mod homepage {
             }
             Ok(())
         }
-        fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
-            let popup_width = area.width * percent_x / 100;
-            let popup_height = area.height * percent_y / 100;
-            let popup_x = (area.width - popup_width) / 2;
-            let popup_y = (area.height - popup_height) / 2;
-            Rect::new(popup_x, popup_y, popup_width, popup_height)
-        }
+
         fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
             let text = BigTextBuilder::default()
                 .pixel_size(tui_big_text::PixelSize::Quadrant)
