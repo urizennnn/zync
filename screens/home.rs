@@ -31,7 +31,6 @@ pub mod homepage {
         pub fn handle_events(&mut self, input_box: &mut InputBox) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    // Handle quitting logic
                     KeyCode::Char('q') => {
                         if self.show_popup {
                             self.popup_tx
@@ -44,7 +43,6 @@ pub mod homepage {
                             self.running = false;
                         }
                     }
-                    // Handle popup show/hide
                     KeyCode::Char('n') => {
                         self.show_popup = true;
                     }
@@ -61,7 +59,6 @@ pub mod homepage {
                             unsafe { FLAG = false };
                         }
                     }
-                    // Handle left and right navigation inside popup
                     KeyCode::Right => {
                         if self.show_popup {
                             self.selected_button += 1;
@@ -88,7 +85,6 @@ pub mod homepage {
                             input_box.move_cursor_left();
                         }
                     }
-                    // Handle Enter key
                     KeyCode::Enter => {
                         if self.show_popup {
                             self.popup_tx
@@ -104,7 +100,6 @@ pub mod homepage {
                             println!("{msg}");
                         }
                     }
-                    // Handle character input during editing mode
                     KeyCode::Char(c) => {
                         if input_box.input_mode == InputMode::Editing {
                             input_box.enter_char(c);
@@ -113,15 +108,12 @@ pub mod homepage {
                             unsafe { FLAG = true };
                         }
                     }
-                    // Handle backspace key
                     KeyCode::Backspace => {
                         if input_box.input_mode == InputMode::Editing {
                             input_box.delete_char();
                         }
                     }
-                    _ => {
-                        // Any other keys can be handled here if necessary
-                    }
+                    _ => {}
                 }
             }
             Ok(())

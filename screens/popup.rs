@@ -137,7 +137,7 @@ impl InputBox {
             InputMode::Normal => (
                 vec![
                     "Press ".into(),
-                    "q".bold(),
+                    "Esc".bold(),
                     " to exit, ".into(),
                     "e".bold(),
                     " to start editing.".bold(),
@@ -147,7 +147,7 @@ impl InputBox {
             InputMode::Editing => (
                 vec![
                     "Press ".into(),
-                    "Esc".bold(),
+                    "q".bold(),
                     " to stop editing, ".into(),
                     "Enter".bold(),
                     " to record the message".into(),
