@@ -14,7 +14,7 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::check_config;
-    use crate::popup::{ApiPopup, InputBox};
+    use crate::popup::{ApiPopup, InputBox, InputMode};
 
     pub struct Home {
         running: bool,
@@ -28,7 +28,7 @@ pub mod homepage {
     }
 
     impl Home {
-        pub fn handle_events(&mut self) -> io::Result<()> {
+        pub fn handle_events(&mut self, input_box: &mut InputBox) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => {
@@ -51,6 +51,9 @@ pub mod homepage {
                                 .unwrap();
                             self.show_popup = false;
                         }
+                        if input_box.input_mode == InputMode::Editing {
+                            input_box.input_mode = InputMode::Normal;
+                        }
                     }
                     KeyCode::Right => {
                         if self.show_popup {
@@ -65,7 +68,7 @@ pub mod homepage {
                     }
                     KeyCode::Left => {
                         if self.show_popup {
-                            self.selected_button -= 1;
+                            self.selected_button = self.selected_button.wrapping_sub(1);
                             if self.selected_button == usize::MAX {
                                 self.selected_button = 1;
                             }
@@ -80,9 +83,22 @@ pub mod homepage {
                                 .send((self.selected_button as u16, Some(true)))
                                 .unwrap();
                             self.show_popup = false;
+                        } else if input_box.input_mode == InputMode::Editing {
+                            input_box.submit_message();
                         }
                     }
-                    _ => {}
+                    _ => {
+                        // Handle character input for InputBox when in editing mode
+                        if input_box.input_mode == InputMode::Editing {
+                            match key.code {
+                                KeyCode::Char(c) => input_box.enter_char(c),
+                                KeyCode::Backspace => input_box.delete_char(),
+                                KeyCode::Left => input_box.move_cursor_left(),
+                                KeyCode::Right => input_box.move_cursor_right(),
+                                _ => {}
+                            }
+                        }
+                    }
                 }
             }
             Ok(())
@@ -107,6 +123,7 @@ pub mod homepage {
                     }
                 }
                 term = Arc::clone(&term);
+                let mut input = InputBox::default();
 
                 match check_config() {
                     Ok(_) => {
@@ -122,14 +139,13 @@ pub mod homepage {
                             }
 
                             if self.show_api_popup {
-                                let input = InputBox::default();
                                 input.draw(f);
                             }
                         })?;
                     }
                 }
 
-                self.handle_events()?;
+                self.handle_events(&mut input)?;
             }
             Ok(())
         }

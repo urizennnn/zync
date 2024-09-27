@@ -1,5 +1,7 @@
+use std::borrow::Borrow;
+use std::default;
+
 use crate::home::homepage::Home;
-use color_eyre::eyre::Ok;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use derive_setters::Setters;
 use ratatui::buffer::Buffer;
@@ -7,10 +9,7 @@ use ratatui::layout::{Constraint, Layout, Position};
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Span, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
-use ratatui::DefaultTerminal;
 use ratatui::{layout::Rect, text::Line, widgets::Clear, Frame};
-use std::error::Error;
-use std::sync::{Arc, Mutex};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
 use tui_textarea::TextArea;
 
@@ -59,8 +58,17 @@ pub struct InputBox {
     pub input_mode: InputMode,
 }
 
-#[derive(Debug)]
+impl std::ops::Deref for InputBox {
+    type Target = InputMode;
+
+    fn deref(&self) -> &Self::Target {
+        &self.input_mode
+    }
+}
+
+#[derive(Debug, PartialEq, Default)]
 pub enum InputMode {
+    #[default]
     Normal,
     Editing,
 }
@@ -74,17 +82,17 @@ impl InputBox {
         }
     }
 
-    fn move_cursor_left(&mut self) {
+    pub(crate) fn move_cursor_left(&mut self) {
         let cursor_moved_left = self.character_index.saturating_sub(1);
         self.character_index = self.clamp_cursor(cursor_moved_left);
     }
 
-    fn move_cursor_right(&mut self) {
+    pub(crate) fn move_cursor_right(&mut self) {
         let cursor_moved_right = self.character_index.saturating_add(1);
         self.character_index = self.clamp_cursor(cursor_moved_right);
     }
 
-    fn enter_char(&mut self, new_char: char) {
+    pub(crate) fn enter_char(&mut self, new_char: char) {
         let index = self.byte_index();
         self.input.insert(index, new_char);
         self.move_cursor_right();
@@ -98,7 +106,7 @@ impl InputBox {
             .unwrap_or(self.input.len())
     }
 
-    fn delete_char(&mut self) {
+    pub(crate) fn delete_char(&mut self) {
         let is_not_cursor_leftmost = self.character_index != 0;
         if is_not_cursor_leftmost {
             let current_index = self.character_index;
@@ -120,43 +128,41 @@ impl InputBox {
         self.character_index = 0;
     }
 
-    fn submit_message(&mut self) -> String {
+    pub(crate) fn submit_message(&mut self) -> String {
         let input_msg = self.input.clone();
         self.input.clear();
         self.reset_cursor();
         input_msg
     }
 
-    pub fn handle_input(mut self, home: Home) {
-        if home.show_api_popup {
-            if let Event::Key(key) = event::read().unwrap() {
-                match self.input_mode {
-                    InputMode::Normal => match key.code {
-                        KeyCode::Char('e') => {
-                            self.input_mode = InputMode::Editing;
-                        }
-                        KeyCode::Char('q') => {
-                            return; // Expected return type Result<(), Box<dyn Error>>
-                        }
-                        _ => {}
-                    },
-                    InputMode::Editing if key.kind == KeyEventKind::Press => match key.code {
-                        KeyCode::Enter => {
-                            let output = self.submit_message();
-                            let msg = format!("{:?}", output);
-                            println!("{msg}");
-                        }
-                        KeyCode::Char(to_insert) => self.enter_char(to_insert),
-                        KeyCode::Backspace => self.delete_char(),
-                        KeyCode::Left => self.move_cursor_left(),
-                        KeyCode::Right => self.move_cursor_right(),
-                        KeyCode::Esc => self.input_mode = InputMode::Normal,
-                        _ => {}
-                    },
-                    InputMode::Editing => {}
-                }
+    pub fn handle_input(mut self) {
+        if let Event::Key(key) = event::read().unwrap() {
+            match self.input_mode {
+                InputMode::Normal => match key.code {
+                    KeyCode::Char('e') => {
+                        self.input_mode = InputMode::Editing;
+                    }
+                    KeyCode::Char('q') => {
+                        return; // Expected return type Result<(), Box<dyn Error>>
+                    }
+                    _ => {}
+                },
+                InputMode::Editing if key.kind == KeyEventKind::Press => match key.code {
+                    KeyCode::Enter => {
+                        let output = self.submit_message();
+                        let msg = format!("{:?}", output);
+                        println!("{msg}");
+                    }
+                    KeyCode::Char(to_insert) => self.enter_char(to_insert),
+                    KeyCode::Backspace => self.delete_char(),
+                    KeyCode::Left => self.move_cursor_left(),
+                    KeyCode::Right => self.move_cursor_right(),
+                    KeyCode::Esc => self.input_mode = InputMode::Normal,
+                    _ => {}
+                },
+                InputMode::Editing => {}
             }
-        } // Ensure the function returns Ok(()) in all paths
+        }
     }
 
     pub fn draw(&self, frame: &mut Frame) {
