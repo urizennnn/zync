@@ -13,7 +13,6 @@ pub mod homepage {
     use tui_big_text::{BigText, BigTextBuilder};
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
-    use crate::core::core_lib::check_config;
     use crate::popup::{InputBox, InputMode, FLAG};
 
     pub struct Home {
@@ -31,95 +30,107 @@ pub mod homepage {
         pub fn handle_events(&mut self, input_box: &mut InputBox) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char('q') => {
-                        if self.show_popup {
-                            self.popup_tx
-                                .send((self.selected_button as u16, Some(false)))
-                                .unwrap();
-                            self.show_popup = false;
-                        } else if self.show_api_popup {
-                            unsafe { FLAG = false };
-                        } else {
-                            self.running = false;
-                        }
-                    }
-                    KeyCode::Char('n') => {
-                        self.show_popup = true;
-                    }
-                    KeyCode::Esc => {
-                        if self.show_popup {
-                            self.popup_tx
-                                .send((self.selected_button as u16, Some(false)))
-                                .unwrap();
-                            self.show_popup = false;
-                        } else if self.show_api_popup {
-                            self.show_api_popup = false;
-                        } else if input_box.input_mode == InputMode::Editing {
-                            input_box.input_mode = InputMode::Normal;
-                            unsafe { FLAG = false };
-                        }
-                    }
-                    KeyCode::Right => {
-                        if self.show_popup {
-                            self.selected_button += 1;
-                            if self.selected_button == 2 {
-                                self.selected_button = 0;
-                            }
-                            self.popup_tx
-                                .send((self.selected_button as u16, None))
-                                .unwrap();
-                        } else if input_box.input_mode == InputMode::Editing {
-                            input_box.move_cursor_right();
-                        }
-                    }
-                    KeyCode::Left => {
-                        if self.show_popup {
-                            self.selected_button = self.selected_button.wrapping_sub(1);
-                            if self.selected_button == usize::MAX {
-                                self.selected_button = 1;
-                            }
-                            self.popup_tx
-                                .send((self.selected_button as u16, None))
-                                .unwrap();
-                        } else if input_box.input_mode == InputMode::Editing {
-                            input_box.move_cursor_left();
-                        }
-                    }
-                    KeyCode::Enter => {
-                        if self.show_popup {
-                            self.popup_tx
-                                .send((self.selected_button as u16, Some(true)))
-                                .unwrap();
-                            self.show_popup = false;
-                        } else if input_box.input_mode == InputMode::Editing {
-                            let api = input_box.submit_message();
-                            println!("{api}");
-                        } else {
-                            let output = input_box.submit_message();
-                            let msg = format!("{:?}", output);
-                            println!("{msg}");
-                        }
-                    }
-                    KeyCode::Char(c) => {
-                        if input_box.input_mode == InputMode::Editing {
-                            input_box.enter_char(c);
-                        } else if c == 'e' {
-                            input_box.input_mode = InputMode::Editing;
-                            unsafe { FLAG = true };
-                        }
-                    }
-                    KeyCode::Backspace => {
-                        if input_box.input_mode == InputMode::Editing {
-                            input_box.delete_char();
-                        }
-                    }
+                    KeyCode::Char('q') => self.handle_q_key(),
+                    KeyCode::Char('n') => self.handle_n_key(),
+                    KeyCode::Esc => self.handle_esc_key(input_box),
+                    KeyCode::Right => self.handle_right_key(input_box),
+                    KeyCode::Left => self.handle_left_key(input_box),
+                    KeyCode::Enter => self.handle_enter_key(input_box),
+                    KeyCode::Char(c) => self.handle_char_key(c, input_box),
+                    KeyCode::Backspace => self.handle_backspace_key(input_box),
                     _ => {}
                 }
             }
             Ok(())
         }
 
-        pub fn run(mut self, mut term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
+        fn handle_q_key(&mut self) {
+            if self.show_popup {
+                self.popup_tx
+                    .send((self.selected_button as u16, Some(false)))
+                    .unwrap();
+                self.show_popup = false;
+            } else if self.show_api_popup {
+                unsafe { FLAG = false };
+            } else {
+                self.running = false;
+            }
+        }
+
+        fn handle_n_key(&mut self) {
+            self.show_popup = true;
+        }
+
+        fn handle_esc_key(&mut self, input_box: &mut InputBox) {
+            if self.show_popup {
+                self.popup_tx
+                    .send((self.selected_button as u16, Some(false)))
+                    .unwrap();
+                self.show_popup = false;
+            } else if input_box.input_mode == InputMode::Editing {
+                input_box.input_mode = InputMode::Normal;
+                unsafe { FLAG = false };
+            } else if self.show_api_popup {
+                self.show_api_popup = false;
+            }
+        }
+
+        fn handle_right_key(&mut self, input_box: &mut InputBox) {
+            if self.show_popup {
+                self.selected_button = (self.selected_button + 1) % 2;
+                self.popup_tx
+                    .send((self.selected_button as u16, None))
+                    .unwrap();
+            } else if input_box.input_mode == InputMode::Editing {
+                input_box.move_cursor_right();
+            }
+        }
+
+        fn handle_left_key(&mut self, input_box: &mut InputBox) {
+            if self.show_popup {
+                self.selected_button = (self.selected_button + 1) % 2;
+                self.popup_tx
+                    .send((self.selected_button as u16, None))
+                    .unwrap();
+            } else if input_box.input_mode == InputMode::Editing {
+                input_box.move_cursor_left();
+            }
+        }
+
+        fn handle_enter_key(&mut self, input_box: &mut InputBox) {
+            if self.show_popup {
+                self.popup_tx
+                    .send((self.selected_button as u16, Some(true)))
+                    .unwrap();
+                self.show_popup = false;
+            } else if input_box.input_mode == InputMode::Editing {
+                let api = input_box.submit_message();
+                println!("{api}");
+            } else {
+                let output = input_box.submit_message();
+                let msg = format!("{:?}", output);
+                println!("{msg}");
+            }
+        }
+
+        fn handle_char_key(&mut self, c: char, input_box: &mut InputBox) {
+            if input_box.input_mode == InputMode::Editing {
+                input_box.enter_char(c);
+            } else if c == 'e' {
+                input_box.input_mode = InputMode::Editing;
+                unsafe { FLAG = true };
+            }
+        }
+
+        fn handle_backspace_key(&mut self, input_box: &mut InputBox) {
+            if input_box.input_mode == InputMode::Editing {
+                input_box.delete_char();
+            }
+        }
+
+        pub fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
+            let mut input_box = InputBox::default();
+
             while self.running {
                 if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
                     match confirmed {
@@ -137,30 +148,21 @@ pub mod homepage {
                         None => {}
                     }
                 }
-                term = Arc::clone(&term);
-                let mut input = InputBox::default();
 
-                match check_config() {
-                    Ok(_) => {
-                        todo!("Redirect to dashboard screen");
+                term.lock().unwrap().draw(|f| {
+                    let area = f.area();
+                    self.render(area, f.buffer_mut());
+
+                    if self.show_popup {
+                        self.render_notification(f);
                     }
-                    Err(_) => {
-                        term.lock().unwrap().draw(|f| {
-                            let area = f.area();
-                            self.render(area, f.buffer_mut());
 
-                            if self.show_popup {
-                                self.render_notification(f);
-                            }
-
-                            if self.show_api_popup {
-                                input.draw(f);
-                            }
-                        })?;
+                    if self.show_api_popup {
+                        input_box.draw(f);
                     }
-                }
+                })?;
 
-                self.handle_events(&mut input)?;
+                self.handle_events(&mut input_box)?;
             }
             Ok(())
         }

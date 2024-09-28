@@ -48,6 +48,7 @@ impl<'a> ApiPopup<'a> {
 }
 
 pub(crate) static mut FLAG: bool = false;
+
 #[derive(Debug)]
 pub struct InputBox {
     pub input: String,
@@ -55,7 +56,7 @@ pub struct InputBox {
     pub input_mode: InputMode,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum InputMode {
     Normal,
     Editing,
@@ -123,17 +124,17 @@ impl InputBox {
         input_msg
     }
 
-    pub fn draw(&mut self, frame: &mut Frame) {
-        if unsafe { FLAG } {
-            self.input_mode = InputMode::Editing;
-        }
-        if unsafe { !FLAG } {
-            self.input_mode = InputMode::Normal;
-        }
+    pub fn draw(&self, frame: &mut Frame) {
+        let input_mode = if unsafe { FLAG } {
+            InputMode::Editing
+        } else {
+            InputMode::Normal
+        };
+
         let vertical = Layout::vertical([Constraint::Length(1), Constraint::Length(3)]);
         let [help_area, input_area] = vertical.areas(frame.area());
 
-        let (msg, style) = match self.input_mode {
+        let (msg, style) = match input_mode {
             InputMode::Normal => (
                 vec![
                     "Press ".into(),
@@ -161,19 +162,18 @@ impl InputBox {
         frame.render_widget(help_message, help_area);
 
         let input = Paragraph::new(self.input.as_str())
-            .style(match self.input_mode {
+            .style(match input_mode {
                 InputMode::Normal => Style::default(),
                 InputMode::Editing => Style::default().fg(ratatui::style::Color::Yellow),
             })
-            .block(Block::bordered().title("Input"));
+            .block(Block::default().borders(Borders::ALL).title("Input"));
         frame.render_widget(input, input_area);
-        match self.input_mode {
-            InputMode::Normal => {}
 
-            InputMode::Editing => frame.set_cursor_position(Position::new(
+        if input_mode == InputMode::Editing {
+            frame.set_cursor_position(Position::new(
                 input_area.x + self.character_index as u16 + 1,
                 input_area.y + 1,
-            )),
+            ));
         }
     }
 }
