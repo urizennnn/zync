@@ -1,53 +1,104 @@
 use crate::home::homepage::Home;
 use derive_setters::Setters;
-use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Position};
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Span, Text};
-use ratatui::widgets::{Block, Borders, Paragraph, Widget, Wrap};
-use ratatui::{layout::Rect, text::Line, widgets::Clear, Frame};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::{layout::Alignment, style::Color, Frame};
+use ratatui::{layout::Rect, text::Line, widgets::Clear};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
-use tui_textarea::TextArea;
+
+pub static mut FLAG: bool = false;
 
 #[derive(Default, Setters)]
-pub struct ApiPopup<'a> {
+pub struct ApiPopup {
     pub title: String,
     pub message: String,
-    pub input: Block<'a>,
-    pub buttons: Vec<String>,
+    pub input: InputBox,
 }
 
-impl Widget for ApiPopup<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let outer_block = Block::default()
-            .title(self.title)
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(ratatui::style::Color::Yellow));
-        outer_block.render(area, buf);
-
-        let chunks = Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(area);
-
-        let centered_message = Paragraph::new(self.message)
-            .alignment(ratatui::layout::Alignment::Center)
-            .wrap(Wrap { trim: true });
-        centered_message.render(chunks[0], buf);
-
-        let mut input = TextArea::default();
-        input.set_block(Block::default().borders(Borders::ALL));
-        input.render(chunks[1], buf);
-    }
-}
-
-impl<'a> ApiPopup<'a> {
+impl ApiPopup {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            title: "API Key".to_string(),
+            message: "Please input your API key".to_string(),
+            input: InputBox::new(),
+        }
+    }
+
+    pub fn render_url(&mut self, frame: &mut Frame) {
+        let spans = vec![
+        Span::raw("Copy "),
+        Span::styled("this url", Style::default().add_modifier(Modifier::BOLD)),
+        Span::raw(" and paste it in your browser of choice to acquire your API key and proceed with your file sharing session.\n"),
+        Span::styled("http://localhost:8000", Style::default().add_modifier(Modifier::BOLD)),
+    ];
+
+        let text = Text::from(Line::from(spans));
+
+        let url = Paragraph::new(text)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(ratatui::widgets::BorderType::Rounded),
+            )
+            .style(Style::default().fg(Color::Gray))
+            .wrap(Wrap { trim: true })
+            .alignment(Alignment::Center);
+
+        let area = calculate_popup_area(frame.area(), 30, 10);
+        frame.render_widget(Clear, area);
+        frame.render_widget(url, area);
+    }
+
+    pub fn draw(&self, frame: &mut Frame, input: &InputBox) {
+        let area = calculate_popup_area(frame.area(), 30, 30);
+        frame.render_widget(Clear, area);
+
+        let popup_layout = Layout::vertical([
+            Constraint::Length(3),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(3),
+        ])
+        .split(area);
+
+        let title = Paragraph::new(self.title.clone())
+            .alignment(Alignment::Center)
+            .style(Style::default().fg(Color::Yellow));
+        frame.render_widget(title, popup_layout[0]);
+
+        let message = Paragraph::new(self.message.clone()).alignment(Alignment::Center);
+        frame.render_widget(message, popup_layout[2]);
+
+        let input_area = popup_layout[3];
+        let input_layout = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Length(1),
+        ])
+        .split(input_area);
+
+        let padded_input_area = Layout::horizontal([
+            Constraint::Length(2),
+            Constraint::Min(1),
+            Constraint::Length(2),
+        ])
+        .split(input_layout[1])[1];
+
+        input.draw_in_popup(frame, padded_input_area);
+
+        let help_area = popup_layout[4];
+        input.draw_help(frame, help_area);
+
+        let popup_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(ratatui::widgets::BorderType::Rounded)
+            .style(Style::default().fg(Color::Gray));
+        frame.render_widget(popup_block, area);
     }
 }
-
-pub(crate) static mut FLAG: bool = false;
 
 #[derive(Debug)]
 pub struct InputBox {
@@ -71,17 +122,17 @@ impl InputBox {
         }
     }
 
-    pub(crate) fn move_cursor_left(&mut self) {
+    pub fn move_cursor_left(&mut self) {
         let cursor_moved_left = self.character_index.saturating_sub(1);
         self.character_index = self.clamp_cursor(cursor_moved_left);
     }
 
-    pub(crate) fn move_cursor_right(&mut self) {
+    pub fn move_cursor_right(&mut self) {
         let cursor_moved_right = self.character_index.saturating_add(1);
         self.character_index = self.clamp_cursor(cursor_moved_right);
     }
 
-    pub(crate) fn enter_char(&mut self, new_char: char) {
+    pub fn enter_char(&mut self, new_char: char) {
         let index = self.byte_index();
         self.input.insert(index, new_char);
         self.move_cursor_right();
@@ -95,7 +146,7 @@ impl InputBox {
             .unwrap_or(self.input.len())
     }
 
-    pub(crate) fn delete_char(&mut self) {
+    pub fn delete_char(&mut self) {
         let is_not_cursor_leftmost = self.character_index != 0;
         if is_not_cursor_leftmost {
             let current_index = self.character_index;
@@ -117,64 +168,69 @@ impl InputBox {
         self.character_index = 0;
     }
 
-    pub(crate) fn submit_message(&mut self) -> String {
+    pub fn submit_message(&mut self) -> String {
         let input_msg = self.input.clone();
         self.input.clear();
         self.reset_cursor();
         input_msg
     }
 
-    pub fn draw(&self, frame: &mut Frame) {
+    pub fn draw_in_popup(&self, frame: &mut Frame, area: Rect) {
         let input_mode = if unsafe { FLAG } {
             InputMode::Editing
         } else {
             InputMode::Normal
         };
 
-        let vertical = Layout::vertical([Constraint::Length(1), Constraint::Length(3)]);
-        let [help_area, input_area] = vertical.areas(frame.area());
+        let input = Paragraph::new(self.input.as_str())
+            .style(match input_mode {
+                InputMode::Normal => Style::default(),
+                InputMode::Editing => Style::default().fg(Color::Yellow),
+            })
+            .block(Block::default().borders(Borders::ALL).title("Input"));
+        frame.render_widget(input, area);
+
+        if input_mode == InputMode::Editing {
+            frame.set_cursor_position(Position::new(
+                area.x + self.character_index as u16 + 1,
+                area.y + 1,
+            ));
+        }
+    }
+
+    pub fn draw_help(&self, frame: &mut Frame, area: Rect) {
+        let input_mode = if unsafe { FLAG } {
+            InputMode::Editing
+        } else {
+            InputMode::Normal
+        };
 
         let (msg, style) = match input_mode {
             InputMode::Normal => (
                 vec![
                     "Press ".into(),
-                    "Esc".bold(),
-                    " to exit, ".into(),
                     "e".bold(),
-                    " to start editing.".bold(),
+                    " to start editing.".into(),
+                    " Press ".into(),
+                    "Esc".bold(),
+                    " to quit.".into(),
                 ],
                 Style::default().add_modifier(Modifier::RAPID_BLINK),
             ),
             InputMode::Editing => (
                 vec![
                     "Press ".into(),
-                    "q".bold(),
+                    "Esc".bold(),
                     " to stop editing, ".into(),
                     "Enter".bold(),
-                    " to record the message".into(),
+                    " to submit".into(),
                 ],
                 Style::default(),
             ),
         };
         let text = Text::from(Line::from(msg)).patch_style(style);
-        let help_message = Paragraph::new(text);
-        frame.render_widget(Clear, help_area);
-        frame.render_widget(help_message, help_area);
-
-        let input = Paragraph::new(self.input.as_str())
-            .style(match input_mode {
-                InputMode::Normal => Style::default(),
-                InputMode::Editing => Style::default().fg(ratatui::style::Color::Yellow),
-            })
-            .block(Block::default().borders(Borders::ALL).title("Input"));
-        frame.render_widget(input, input_area);
-
-        if input_mode == InputMode::Editing {
-            frame.set_cursor_position(Position::new(
-                input_area.x + self.character_index as u16 + 1,
-                input_area.y + 1,
-            ));
-        }
+        let help_message = Paragraph::new(text).alignment(Alignment::Center);
+        frame.render_widget(help_message, area);
     }
 }
 
@@ -184,19 +240,33 @@ impl Default for InputBox {
     }
 }
 
+fn calculate_popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
+    let popup_width = area.width * percent_x / 100;
+    let popup_height = area.height * percent_y / 100;
+
+    let popup_x = (area.width - popup_width) / 2;
+    let popup_y = (area.height - popup_height) / 2;
+
+    Rect::new(
+        area.x + popup_x,
+        area.y + popup_y,
+        popup_width,
+        popup_height,
+    )
+}
 impl Home {
     pub fn render_notification(&mut self, frame: &mut Frame) {
         self.popup_dialog = ConfirmDialogState::default()
             .modal(true)
             .with_title(Span::styled("Notification", Style::new().bold().cyan()))
-            .with_text(vec![Line::from("Are you an admin?")])
+            .with_text(vec![Line::from("Do you have an api key?")])
             .with_yes_button(ButtonLabel::from("(Y)es").unwrap())
             .with_no_button(ButtonLabel::from("(N)o").unwrap())
             .with_yes_button_selected(self.selected_button == 0)
             .with_listener(Some(self.popup_tx.clone()))
             .open();
 
-        let area = self.calculate_popup_area(frame.area(), 50, 30);
+        let area = calculate_popup_area(frame.area(), 50, 30);
 
         if self.popup_dialog.is_opened() {
             let popup = ConfirmDialog::default()
@@ -213,20 +283,5 @@ impl Home {
             frame.render_widget(Clear, area);
             frame.render_stateful_widget(popup, area, &mut self.popup_dialog);
         }
-    }
-
-    fn calculate_popup_area(&self, area: Rect, percent_x: u16, percent_y: u16) -> Rect {
-        let popup_width = area.width * percent_x / 100;
-        let popup_height = area.height * percent_y / 100;
-
-        let popup_x = (area.width - popup_width) / 2;
-        let popup_y = (area.height - popup_height) / 2;
-
-        Rect::new(
-            area.x + popup_x,
-            area.y + popup_y,
-            popup_width,
-            popup_height,
-        )
     }
 }

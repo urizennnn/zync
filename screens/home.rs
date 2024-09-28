@@ -13,11 +13,13 @@ pub mod homepage {
     use tui_big_text::{BigText, BigTextBuilder};
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
-    use crate::popup::{InputBox, InputMode, FLAG};
+    use crate::core::core_lib::{check_config, create_config};
+    use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
 
     pub struct Home {
         running: bool,
         pub show_popup: bool,
+        pub render_url_popup: bool,
         pub show_api_popup: bool,
         pub show_api_dialog: ConfirmDialogState,
         pub selected_button: usize,
@@ -30,8 +32,8 @@ pub mod homepage {
         pub fn handle_events(&mut self, input_box: &mut InputBox) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char('q') => self.handle_q_key(),
-                    KeyCode::Char('n') => self.handle_n_key(),
+                    KeyCode::Char('q') => self.handle_q_key(input_box),
+                    KeyCode::Char('n') => self.handle_n_key('n', input_box),
                     KeyCode::Esc => self.handle_esc_key(input_box),
                     KeyCode::Right => self.handle_right_key(input_box),
                     KeyCode::Left => self.handle_left_key(input_box),
@@ -44,21 +46,26 @@ pub mod homepage {
             Ok(())
         }
 
-        fn handle_q_key(&mut self) {
-            if self.show_popup {
+        fn handle_q_key(&mut self, input_box: &mut InputBox) {
+            if self.show_api_popup {
+                self.handle_char_key('q', input_box);
+            } else if self.show_popup {
                 self.popup_tx
                     .send((self.selected_button as u16, Some(false)))
                     .unwrap();
                 self.show_popup = false;
-            } else if self.show_api_popup {
-                unsafe { FLAG = false };
+            } else if self.render_url_popup {
             } else {
                 self.running = false;
             }
         }
 
-        fn handle_n_key(&mut self) {
-            self.show_popup = true;
+        fn handle_n_key(&mut self, c: char, input_box: &mut InputBox) {
+            if self.show_api_popup {
+                self.handle_char_key(c, input_box);
+            } else {
+                self.show_popup = true;
+            }
         }
 
         fn handle_esc_key(&mut self, input_box: &mut InputBox) {
@@ -72,6 +79,8 @@ pub mod homepage {
                 unsafe { FLAG = false };
             } else if self.show_api_popup {
                 self.show_api_popup = false;
+            } else if self.render_url_popup {
+                self.render_url_popup = false;
             }
         }
 
@@ -103,13 +112,19 @@ pub mod homepage {
                     .send((self.selected_button as u16, Some(true)))
                     .unwrap();
                 self.show_popup = false;
-            } else if input_box.input_mode == InputMode::Editing {
-                let api = input_box.submit_message();
-                println!("{api}");
             } else {
-                let output = input_box.submit_message();
-                let msg = format!("{:?}", output);
-                println!("{msg}");
+                match input_box.input_mode == InputMode::Editing {
+                    true => {
+                        let api = input_box.submit_message();
+                        create_config(&api).unwrap();
+                        self.show_api_popup = false;
+                    }
+                    false => {
+                        let output = input_box.submit_message();
+                        create_config(&output).unwrap();
+                        self.show_api_popup = false;
+                    }
+                }
             }
         }
 
@@ -131,6 +146,7 @@ pub mod homepage {
         pub fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
             let mut input_box = InputBox::default();
 
+            let mut api_popup = ApiPopup::new();
             while self.running {
                 if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
                     match confirmed {
@@ -138,7 +154,7 @@ pub mod homepage {
                             if selected_button == 0 {
                                 self.show_api_popup = true;
                             } else {
-                                println!("Confirmed on button No");
+                                self.render_url_popup = true;
                             }
                             self.show_popup = false;
                         }
@@ -152,13 +168,15 @@ pub mod homepage {
                 term.lock().unwrap().draw(|f| {
                     let area = f.area();
                     self.render(area, f.buffer_mut());
-
                     if self.show_popup {
                         self.render_notification(f);
                     }
 
                     if self.show_api_popup {
-                        input_box.draw(f);
+                        api_popup.draw(f, &input_box);
+                    }
+                    if self.render_url_popup {
+                        api_popup.render_url(f);
                     }
                 })?;
 
@@ -227,6 +245,7 @@ pub mod homepage {
                 show_api_dialog: ConfirmDialogState::default(),
                 running: true,
                 show_popup: false,
+                render_url_popup: false,
                 selected_button: 1,
                 popup_tx: tx,
                 popup_rx: rx,

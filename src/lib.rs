@@ -12,6 +12,3 @@ pub mod app;
 
 #[path = "../screens/dashboard.rs"]
 pub mod dashboard;
-
-#[path = "../lib/widgets/button.rs"]
-pub mod button;
