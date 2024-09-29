@@ -14,6 +14,7 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::{check_config, create_config};
+    use crate::dashboard::dashboard_view::{ui, App, Transfer};
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
 
     pub struct Home {
@@ -167,7 +168,19 @@ pub mod homepage {
 
                 match check_config() {
                     Ok(_) => {
-                        todo!("Not implemented yet");
+                        let app = App {
+                            log_entries: vec![],
+                            transfers: vec![Transfer {
+                                name: String::new(),
+                                status: String::new(),
+                                destination: String::new(),
+                                time: String::new(),
+                            }],
+                            input: String::new(),
+                        };
+                        term.lock().unwrap().draw(|f| {
+                            ui(f, &app);
+                        });
                     }
                     Err(_) => {
                         term.lock().unwrap().draw(|f| {

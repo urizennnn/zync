@@ -11,7 +11,7 @@ use std::{
 use tcshare_ui::home;
 
 #[tokio::main]
-fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
     let mut stdout = stdout();
     tui_logger::init_logger(log::LevelFilter::Trace)?;
     tui_logger::set_default_level(log::LevelFilter::Info);
