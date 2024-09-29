@@ -165,20 +165,27 @@ pub mod homepage {
                     }
                 }
 
-                term.lock().unwrap().draw(|f| {
-                    let area = f.area();
-                    self.render(area, f.buffer_mut());
-                    if self.show_popup {
-                        self.render_notification(f);
+                match check_config() {
+                    Ok(_) => {
+                        todo!("Not implemented yet");
                     }
+                    Err(_) => {
+                        term.lock().unwrap().draw(|f| {
+                            let area = f.area();
+                            self.render(area, f.buffer_mut());
+                            if self.show_popup {
+                                self.render_notification(f);
+                            }
 
-                    if self.show_api_popup {
-                        api_popup.draw(f, &input_box);
+                            if self.show_api_popup {
+                                api_popup.draw(f, &input_box);
+                            }
+                            if self.render_url_popup {
+                                api_popup.render_url(f);
+                            }
+                        })?;
                     }
-                    if self.render_url_popup {
-                        api_popup.render_url(f);
-                    }
-                })?;
+                }
 
                 self.handle_events(&mut input_box)?;
             }

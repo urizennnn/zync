@@ -10,6 +10,7 @@ use std::{
 };
 use tcshare_ui::home;
 
+#[tokio::main]
 fn main() -> Result<(), Box<dyn Error>> {
     let mut stdout = stdout();
     tui_logger::init_logger(log::LevelFilter::Trace)?;
@@ -18,6 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     color_eyre::install()?;
     install_hook();
+    human_panic::setup_panic!();
 
     let backend = Arc::new(Mutex::new(ratatui::init()));
     crossterm::execute!(stdout, EnableMouseCapture, EnterAlternateScreen)?;
@@ -40,9 +42,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 pub fn install_hook() {
     let original_hook = take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
-        println!("Panic occurred: {:?}", panic_info);
-        initialize_panic_handler(panic_info).unwrap();
         original_hook(panic_info);
+        initialize_panic_handler(panic_info).unwrap();
     }));
 }
 
@@ -66,7 +67,7 @@ pub fn initialize_panic_handler(
         .into_hooks();
     eyre_hook.install()?;
     let msg = format!("{}", panic_hook.panic_report(panic_info));
-    #[cfg(not(debug_assertions))]
+    // #[cfg(not(debug_assertions))]
     {
         eprintln!("{msg}");
         use human_panic::{handle_dump, print_msg, Metadata};
