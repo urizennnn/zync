@@ -273,7 +273,7 @@ dependencies = [
  "encode_unicode",
  "lazy_static",
  "libc",
- "unicode-width",
+ "unicode-width 0.1.13",
  "windows-sys 0.52.0",
 ]
 
@@ -1263,7 +1263,7 @@ dependencies = [
  "time",
  "unicode-segmentation",
  "unicode-truncate",
- "unicode-width",
+ "unicode-width 0.1.13",
 ]
 
 [[package]]
@@ -1661,6 +1661,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "style"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b3baeb5ebb9b755879655f7108819cf4bf0a2868f4b301a02ec7a9b13f8580f"
+
+[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1718,6 +1724,7 @@ dependencies = [
  "dialoguer",
  "dirs",
  "human-panic",
+ "itertools",
  "libc",
  "lipsum",
  "log",
@@ -1729,11 +1736,13 @@ dependencies = [
  "serde",
  "serde_json",
  "strip-ansi-escapes",
+ "style",
  "tokio",
  "tui-big-text",
  "tui-logger",
  "tui-textarea",
  "tui_confirm_dialog",
+ "unicode-width 0.2.0",
  "whoami",
 ]
 
@@ -1999,7 +2008,7 @@ checksum = "29c07084342a575cea919eea996b9658a358c800b03d435df581c1d7c60e065a"
 dependencies = [
  "crossterm",
  "ratatui",
- "unicode-width",
+ "unicode-width 0.1.13",
 ]
 
 [[package]]
@@ -2049,7 +2058,7 @@ checksum = "b3644627a5af5fa321c95b9b235a72fd24cd29c648c2c379431e6628655627bf"
 dependencies = [
  "itertools",
  "unicode-segmentation",
- "unicode-width",
+ "unicode-width 0.1.13",
 ]
 
 [[package]]
@@ -2057,6 +2066,12 @@ name = "unicode-width"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0336d538f7abc86d282a4189614dfaa90810dfc2c6f6427eaf88e16311dd225d"
+
+[[package]]
+name = "unicode-width"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
 
 [[package]]
 name = "untrusted"

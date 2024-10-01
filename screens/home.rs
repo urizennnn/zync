@@ -14,7 +14,7 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::{check_config, create_config};
-    use crate::dashboard::dashboard_view::{ui, App, Transfer};
+    use crate::dashboard::dashboard_view::ui;
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
 
     pub struct Home {
@@ -168,19 +168,9 @@ pub mod homepage {
 
                 match check_config() {
                     Ok(_) => {
-                        let app = App {
-                            log_entries: vec![],
-                            transfers: vec![Transfer {
-                                name: String::new(),
-                                status: String::new(),
-                                destination: String::new(),
-                                time: String::new(),
-                            }],
-                            input: String::new(),
-                        };
                         term.lock().unwrap().draw(|f| {
-                            ui(f, &app);
-                        });
+                            ui(f);
+                        })?;
                     }
                     Err(_) => {
                         term.lock().unwrap().draw(|f| {
