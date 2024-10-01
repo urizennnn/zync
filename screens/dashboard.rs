@@ -1,4 +1,5 @@
 pub mod dashboard_view {
+
     use ratatui::{
         layout::{Alignment, Constraint, Direction, Layout, Rect},
         style::{palette::tailwind, Color, Modifier, Style, Stylize},
@@ -34,7 +35,7 @@ pub mod dashboard_view {
                 longest_item_lens: Self::constraint_len_calculator(&items),
                 scroll_state: ScrollbarState::default(),
                 items: Vec::new(),
-                colors: TableColors::new(&tailwind::BLUE),
+                colors: TableColors::new(&tailwind::CYAN),
             }
         }
 
@@ -85,27 +86,52 @@ pub mod dashboard_view {
         }
 
         fn constraint_len_calculator(items: &[Data]) -> (u16, u16, u16, u16) {
-            let name_len = items
+            let total_width: u16 = items
+                .iter()
+                .map(|item| {
+                    item.name.width() as u16
+                        + item.status.width() as u16
+                        + item.destination.width() as u16
+                        + item.time.width() as u16
+                })
+                .max()
+                .unwrap_or(0);
+
+            let name_percent = items
                 .iter()
                 .map(|item| item.name.width() as u16)
                 .max()
-                .unwrap_or(0);
-            let status_len = items
+                .unwrap_or(0)
+                * 100
+                / total_width;
+            let status_percent = items
                 .iter()
                 .map(|item| item.status.width() as u16)
                 .max()
-                .unwrap_or(0);
-            let destination_len = items
+                .unwrap_or(0)
+                * 100
+                / total_width;
+            let destination_percent = items
                 .iter()
                 .map(|item| item.destination.width() as u16)
                 .max()
-                .unwrap_or(0);
-            let time_len = items
+                .unwrap_or(0)
+                * 100
+                / total_width;
+            let time_percent = items
                 .iter()
                 .map(|item| item.time.width() as u16)
                 .max()
-                .unwrap_or(0);
-            (name_len, status_len, destination_len, time_len)
+                .unwrap_or(0)
+                * 100
+                / total_width;
+
+            (
+                name_percent,
+                status_percent,
+                destination_percent,
+                time_percent,
+            )
         }
     }
 
@@ -193,7 +219,8 @@ pub mod dashboard_view {
     impl TableColors {
         const fn new(color: &tailwind::Palette) -> Self {
             Self {
-                buffer_bg: tailwind::SLATE.c950,
+                //c700
+                buffer_bg: tailwind::SLATE.c900,
                 header_bg: color.c900,
                 header_fg: tailwind::SLATE.c200,
                 row_fg: tailwind::SLATE.c200,
@@ -225,19 +252,20 @@ pub mod dashboard_view {
             };
             let item = [&data.name, &data.status, &data.destination, &data.time];
             item.into_iter()
-                .map(|content| Cell::from(Text::from(format!("\n{content}\n"))))
+                .map(|content| Cell::from(Text::from(content.to_string())))
                 .collect::<Row>()
                 .style(Style::new().fg(table.colors.row_fg).bg(color))
-                .height(1)
+                .height(4)
         });
 
         let bar = " █ ";
         let t = Table::new(
             rows,
             [
-                Constraint::Length(table.longest_item_lens.0 + 1),
-                Constraint::Min(table.longest_item_lens.1 + 1),
+                Constraint::Length(table.longest_item_lens.0),
+                Constraint::Min(table.longest_item_lens.1),
                 Constraint::Min(table.longest_item_lens.2),
+                Constraint::Min(table.longest_item_lens.3),
             ],
         )
         .header(header)

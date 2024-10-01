@@ -1714,6 +1714,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tailwind"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5211e71d69bfca1f5c2e1eba962bd2caae2992be8969228940f0a06778484276"
+
+[[package]]
 name = "tcshare-ui"
 version = "0.1.0"
 dependencies = [
@@ -1737,6 +1743,7 @@ dependencies = [
  "serde_json",
  "strip-ansi-escapes",
  "style",
+ "tailwind",
  "tokio",
  "tui-big-text",
  "tui-logger",

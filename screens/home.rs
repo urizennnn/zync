@@ -171,6 +171,7 @@ pub mod homepage {
                     Ok(_) => {
                         term.lock().unwrap().draw(|f| {
                             let mut table = TableWidget::new();
+
                             ui(f, &mut table);
                         })?;
                     }
