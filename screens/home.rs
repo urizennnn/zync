@@ -1,6 +1,7 @@
 pub mod homepage {
     use crossterm::event::{self, Event, KeyCode};
     use ratatui::text::{Line, Span};
+    use ratatui::widgets::Table;
     use ratatui::DefaultTerminal;
     use ratatui::{
         layout::{Constraint, Layout, Rect},
@@ -14,7 +15,7 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::{check_config, create_config};
-    use crate::dashboard::dashboard_view::ui;
+    use crate::dashboard::dashboard_view::{ui, TableWidget};
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
 
     pub struct Home {
@@ -169,7 +170,8 @@ pub mod homepage {
                 match check_config() {
                     Ok(_) => {
                         term.lock().unwrap().draw(|f| {
-                            ui(f);
+                            let mut table = TableWidget::new();
+                            ui(f, &mut table);
                         })?;
                     }
                     Err(_) => {

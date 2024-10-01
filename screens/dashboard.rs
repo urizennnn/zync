@@ -1,34 +1,57 @@
 pub mod dashboard_view {
-
     use ratatui::{
         layout::{Alignment, Constraint, Direction, Layout, Rect},
         style::{palette::tailwind, Color, Modifier, Style, Stylize},
-        text::Line,
-        widgets::{Block, Borders, Cell, Paragraph, Row, ScrollbarState, TableState},
+        text::{Line, Text},
+        widgets::{Block, Borders, Cell, Paragraph, Row, ScrollbarState, Table, TableState},
         Frame,
     };
     use unicode_width::UnicodeWidthStr;
+
     #[derive(Debug)]
-    struct Table {
+    pub struct TableWidget {
         state: TableState,
         items: Vec<Data>,
         longest_item_lens: (u16, u16, u16, u16),
         scroll_state: ScrollbarState,
         colors: TableColors,
-        color_index: usize,
     }
 
     const ITEM_HEIGHT: usize = 2;
-    impl Table {
-        fn new() -> Self {
+
+    impl TableWidget {
+        #[allow(clippy::new_without_default)]
+        pub fn new() -> Self {
+            let items = vec![Data {
+                name: "Name".to_string(),
+                status: "Status".to_string(),
+                destination: "Destination".to_string(),
+                time: "Time".to_string(),
+            }];
+
             Self {
                 state: TableState::default(),
-                items: vec![],
-                longest_item_lens: (0, 0, 0, 0),
+                longest_item_lens: Self::constraint_len_calculator(&items),
                 scroll_state: ScrollbarState::default(),
+                items: Vec::new(),
                 colors: TableColors::new(&tailwind::BLUE),
-                color_index: 0,
             }
+        }
+
+        pub fn add_item(
+            &mut self,
+            name: String,
+            status: String,
+            destination: String,
+            time: String,
+        ) {
+            self.items.push(Data {
+                name,
+                status,
+                destination,
+                time,
+            });
+            self.longest_item_lens = Self::constraint_len_calculator(&self.items);
         }
 
         pub fn next(&mut self) {
@@ -45,6 +68,7 @@ pub mod dashboard_view {
             self.state.select(Some(i));
             self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
         }
+
         pub fn previous(&mut self) {
             let i = match self.state.selected() {
                 Some(i) => {
@@ -59,35 +83,33 @@ pub mod dashboard_view {
             self.state.select(Some(i));
             self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
         }
+
         fn constraint_len_calculator(items: &[Data]) -> (u16, u16, u16, u16) {
-            let name = Data::name;
-            let status = Data::status;
-            let destination = Data::destination;
-            let time = Data::time;
             let name_len = items
                 .iter()
-                .map(|item| name(item).width() as u16)
+                .map(|item| item.name.width() as u16)
                 .max()
                 .unwrap_or(0);
             let status_len = items
                 .iter()
-                .map(|item| status(item).width() as u16)
+                .map(|item| item.status.width() as u16)
                 .max()
                 .unwrap_or(0);
             let destination_len = items
                 .iter()
-                .map(|item| destination(item).width() as u16)
+                .map(|item| item.destination.width() as u16)
                 .max()
                 .unwrap_or(0);
             let time_len = items
                 .iter()
-                .map(|item| time(item).width() as u16)
+                .map(|item| item.time.width() as u16)
                 .max()
                 .unwrap_or(0);
             (name_len, status_len, destination_len, time_len)
         }
     }
-    pub fn ui(f: &mut Frame) {
+
+    pub fn ui(f: &mut Frame, table: &mut TableWidget) {
         let vertical_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(
@@ -142,6 +164,11 @@ pub mod dashboard_view {
             .style(Style::default().fg(Color::White))
             .alignment(Alignment::Center);
         f.render_widget(top_right_text, top_chunks[1]);
+
+        let mut table_state = std::mem::take(&mut table.state);
+        let stateful_table = draw_table(table);
+        f.render_stateful_widget(stateful_table, main_chunks[0], &mut table_state);
+        table.state = table_state;
     }
 
     #[derive(Debug)]
@@ -152,23 +179,6 @@ pub mod dashboard_view {
         time: String,
     }
 
-    impl Data {
-        const fn ref_array(&self) -> [&String; 4] {
-            [&self.name, &self.status, &self.destination, &self.time]
-        }
-        fn name(&self) -> &String {
-            &self.name
-        }
-        fn status(&self) -> &String {
-            &self.status
-        }
-        fn destination(&self) -> &String {
-            &self.destination
-        }
-        fn time(&self) -> &String {
-            &self.time
-        }
-    }
     #[derive(Debug)]
     struct TableColors {
         buffer_bg: Color,
@@ -178,7 +188,6 @@ pub mod dashboard_view {
         selected_style_fg: Color,
         normal_row_color: Color,
         alt_row_color: Color,
-        footer_border_color: Color,
     }
 
     impl TableColors {
@@ -191,11 +200,11 @@ pub mod dashboard_view {
                 selected_style_fg: color.c400,
                 normal_row_color: tailwind::SLATE.c950,
                 alt_row_color: tailwind::SLATE.c900,
-                footer_border_color: color.c400,
             }
         }
     }
-    fn draw_table(table: &Table, data: Data) {
+
+    fn draw_table(table: &TableWidget) -> ratatui::widgets::Table<'_> {
         let header_style = Style::default()
             .fg(table.colors.header_fg)
             .bg(table.colors.header_bg);
@@ -204,9 +213,43 @@ pub mod dashboard_view {
             .fg(table.colors.selected_style_fg);
         let header = ["Name", "Status", "Destination", "Time"]
             .iter()
-            .map(Cell::from)
+            .map(|&s| Cell::from(s))
             .collect::<Row>()
             .style(header_style)
             .height(1);
+
+        let rows = table.items.iter().enumerate().map(|(i, data)| {
+            let color = match i % 2 {
+                0 => table.colors.normal_row_color,
+                _ => table.colors.alt_row_color,
+            };
+            let item = [&data.name, &data.status, &data.destination, &data.time];
+            item.into_iter()
+                .map(|content| Cell::from(Text::from(format!("\n{content}\n"))))
+                .collect::<Row>()
+                .style(Style::new().fg(table.colors.row_fg).bg(color))
+                .height(1)
+        });
+
+        let bar = " █ ";
+        let t = Table::new(
+            rows,
+            [
+                Constraint::Length(table.longest_item_lens.0 + 1),
+                Constraint::Min(table.longest_item_lens.1 + 1),
+                Constraint::Min(table.longest_item_lens.2),
+            ],
+        )
+        .header(header)
+        .highlight_style(selected_style)
+        .highlight_symbol(Text::from(vec![
+            "".into(),
+            bar.into(),
+            bar.into(),
+            "".into(),
+        ]))
+        .bg(table.colors.buffer_bg)
+        .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
+        t
     }
 }
