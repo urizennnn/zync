@@ -1,5 +1,8 @@
 pub mod dashboard_view {
 
+    use std::io;
+
+    use crossterm::event::{self, Event, KeyCode};
     use ratatui::{
         layout::{Alignment, Constraint, Direction, Layout, Rect},
         style::{palette::tailwind, Color, Modifier, Style, Stylize},
@@ -37,6 +40,21 @@ pub mod dashboard_view {
                 items: Vec::new(),
                 colors: TableColors::new(&tailwind::CYAN),
             }
+        }
+
+        pub fn handle_events(&mut self) -> io::Result<()> {
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Up => {
+                        self.next();
+                    }
+                    KeyCode::Down => {
+                        self.previous();
+                    }
+                    _ => {}
+                }
+            }
+            Ok(())
         }
 
         pub fn add_item(
@@ -255,7 +273,7 @@ pub mod dashboard_view {
                 .map(|content| Cell::from(Text::from(content.to_string())))
                 .collect::<Row>()
                 .style(Style::new().fg(table.colors.row_fg).bg(color))
-                .height(4)
+                .height(1)
         });
 
         let bar = " █ ";

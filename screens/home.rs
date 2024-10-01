@@ -1,7 +1,6 @@
 pub mod homepage {
     use crossterm::event::{self, Event, KeyCode};
     use ratatui::text::{Line, Span};
-    use ratatui::widgets::Table;
     use ratatui::DefaultTerminal;
     use ratatui::{
         layout::{Constraint, Layout, Rect},
@@ -31,11 +30,17 @@ pub mod homepage {
     }
 
     impl Home {
-        pub fn handle_events(&mut self, input_box: &mut InputBox) -> io::Result<()> {
+        pub fn handle_events(
+            &mut self,
+            input_box: &mut InputBox,
+            table: &mut TableWidget,
+        ) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => self.handle_q_key(input_box),
                     KeyCode::Char('n') => self.handle_n_key('n', input_box),
+                    KeyCode::Down => self.handle_down_arrow(table),
+                    KeyCode::Up => self.handle_up_key(table),
                     KeyCode::Esc => self.handle_esc_key(input_box),
                     KeyCode::Right => self.handle_right_key(input_box),
                     KeyCode::Left => self.handle_left_key(input_box),
@@ -138,6 +143,12 @@ pub mod homepage {
                 unsafe { FLAG = true };
             }
         }
+        fn handle_up_key(&mut self, table: &mut TableWidget) {
+            table.next();
+        }
+        fn handle_down_arrow(&mut self, table: &mut TableWidget) {
+            table.previous();
+        }
 
         fn handle_backspace_key(&mut self, input_box: &mut InputBox) {
             if input_box.input_mode == InputMode::Editing {
@@ -148,6 +159,19 @@ pub mod homepage {
         pub fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
             let mut input_box = InputBox::default();
 
+            let mut table = TableWidget::new();
+            table.add_item(
+                "File 1".to_string(),
+                "Not Sent".to_string(),
+                "Urizen".to_string(),
+                "Just now".to_string(),
+            );
+            table.add_item(
+                "File 2".to_string(),
+                "Sending".to_string(),
+                "Urizen".to_string(),
+                "10 mins ago".to_string(),
+            );
             let mut api_popup = ApiPopup::new();
             while self.running {
                 if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
@@ -170,8 +194,6 @@ pub mod homepage {
                 match check_config() {
                     Ok(_) => {
                         term.lock().unwrap().draw(|f| {
-                            let mut table = TableWidget::new();
-
                             ui(f, &mut table);
                         })?;
                     }
@@ -193,7 +215,7 @@ pub mod homepage {
                     }
                 }
 
-                self.handle_events(&mut input_box)?;
+                self.handle_events(&mut input_box, &mut table)?;
             }
             Ok(())
         }
