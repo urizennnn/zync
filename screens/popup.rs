@@ -240,7 +240,7 @@ impl Default for InputBox {
     }
 }
 
-fn calculate_popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
+pub fn calculate_popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
     let popup_width = area.width * percent_x / 100;
     let popup_height = area.height * percent_y / 100;
 

@@ -15,6 +15,7 @@ pub mod homepage {
 
     use crate::core::core_lib::{check_config, create_config};
     use crate::dashboard::dashboard_view::{ui, TableWidget};
+    use crate::help::help_popup::HelpPopup;
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
 
     pub struct Home {
@@ -37,14 +38,15 @@ pub mod homepage {
         ) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char('q') => self.handle_q_key(input_box),
+                    KeyCode::Char('q') => self.handle_q_key(input_box, table),
                     KeyCode::Char('n') => self.handle_n_key('n', input_box),
                     KeyCode::Down => self.handle_down_arrow(table),
                     KeyCode::Up => self.handle_up_key(table),
-                    KeyCode::Esc => self.handle_esc_key(input_box),
+                    KeyCode::Esc => self.handle_esc_key(input_box, table),
                     KeyCode::Right => self.handle_right_key(input_box),
                     KeyCode::Left => self.handle_left_key(input_box),
                     KeyCode::Enter => self.handle_enter_key(input_box),
+                    KeyCode::Char('?') => self.handle_help_key(table),
                     KeyCode::Char(c) => self.handle_char_key(c, input_box),
                     KeyCode::Backspace => self.handle_backspace_key(input_box),
                     _ => {}
@@ -52,8 +54,13 @@ pub mod homepage {
             }
             Ok(())
         }
+        fn handle_help_key(&mut self, table: &mut TableWidget) {
+            if !self.show_api_popup {
+                table.help = !table.help;
+            }
+        }
 
-        fn handle_q_key(&mut self, input_box: &mut InputBox) {
+        fn handle_q_key(&mut self, input_box: &mut InputBox, table: &mut TableWidget) {
             if self.show_api_popup {
                 self.handle_char_key('q', input_box);
             } else if self.show_popup {
@@ -62,6 +69,7 @@ pub mod homepage {
                     .unwrap();
                 self.show_popup = false;
             } else if self.render_url_popup {
+            } else if table.help {
             } else {
                 self.running = false;
             }
@@ -75,7 +83,7 @@ pub mod homepage {
             }
         }
 
-        fn handle_esc_key(&mut self, input_box: &mut InputBox) {
+        fn handle_esc_key(&mut self, input_box: &mut InputBox, table: &mut TableWidget) {
             if self.show_popup {
                 self.popup_tx
                     .send((self.selected_button as u16, Some(false)))
@@ -88,6 +96,8 @@ pub mod homepage {
                 self.show_api_popup = false;
             } else if self.render_url_popup {
                 self.render_url_popup = false;
+            } else if table.help {
+                table.help = false;
             }
         }
 
@@ -144,10 +154,14 @@ pub mod homepage {
             }
         }
         fn handle_up_key(&mut self, table: &mut TableWidget) {
-            table.next();
+            if !table.help {
+                table.next();
+            }
         }
         fn handle_down_arrow(&mut self, table: &mut TableWidget) {
-            table.previous();
+            if !table.help {
+                table.previous();
+            }
         }
 
         fn handle_backspace_key(&mut self, input_box: &mut InputBox) {
@@ -158,7 +172,7 @@ pub mod homepage {
 
         pub fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
             let mut input_box = InputBox::default();
-
+            let mut help = HelpPopup::new();
             let mut table = TableWidget::new();
             table.add_item(
                 "File 1".to_string(),
@@ -195,6 +209,9 @@ pub mod homepage {
                     Ok(_) => {
                         term.lock().unwrap().draw(|f| {
                             ui(f, &mut table);
+                            if table.help {
+                                help.draw_dashboard_help(f);
+                            }
                         })?;
                     }
                     Err(_) => {

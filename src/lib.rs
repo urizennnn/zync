@@ -12,3 +12,6 @@ pub mod app;
 
 #[path = "../screens/dashboard.rs"]
 pub mod dashboard;
+
+#[path = "../screens/help.rs"]
+pub mod help;

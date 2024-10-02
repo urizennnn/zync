@@ -19,6 +19,7 @@ pub mod dashboard_view {
         longest_item_lens: (u16, u16, u16, u16),
         scroll_state: ScrollbarState,
         colors: TableColors,
+        pub help: bool,
     }
 
     const ITEM_HEIGHT: usize = 2;
@@ -34,6 +35,7 @@ pub mod dashboard_view {
             }];
 
             Self {
+                help: false,
                 state: TableState::default(),
                 longest_item_lens: Self::constraint_len_calculator(&items),
                 scroll_state: ScrollbarState::default(),
