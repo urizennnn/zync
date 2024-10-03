@@ -27,20 +27,13 @@ pub mod dashboard_view {
     impl TableWidget {
         #[allow(clippy::new_without_default)]
         pub fn new() -> Self {
-            let items = vec![Data {
-                name: "Name".to_string(),
-                status: "Status".to_string(),
-                destination: "Destination".to_string(),
-                time: "Time".to_string(),
-            }];
-
             Self {
-                help: false,
                 state: TableState::default(),
-                longest_item_lens: Self::constraint_len_calculator(&items),
-                scroll_state: ScrollbarState::default(),
                 items: Vec::new(),
+                longest_item_lens: (0, 0, 0, 0),
+                scroll_state: ScrollbarState::default(),
                 colors: TableColors::new(&tailwind::CYAN),
+                help: false,
             }
         }
 
@@ -62,13 +55,13 @@ pub mod dashboard_view {
         pub fn add_item(
             &mut self,
             name: String,
-            status: String,
+            status: impl Into<Line<'static>>,
             destination: String,
             time: String,
         ) {
             self.items.push(Data {
                 name,
-                status,
+                status: status.into(),
                 destination,
                 time,
             });
@@ -220,7 +213,7 @@ pub mod dashboard_view {
     #[derive(Debug)]
     struct Data {
         name: String,
-        status: String,
+        status: Line<'static>,
         destination: String,
         time: String,
     }
@@ -270,10 +263,14 @@ pub mod dashboard_view {
                 0 => table.colors.normal_row_color,
                 _ => table.colors.alt_row_color,
             };
-            let item = [&data.name, &data.status, &data.destination, &data.time];
-            item.into_iter()
-                .map(|content| Cell::from(Text::from(content.to_string())))
-                .collect::<Row>()
+
+            let cells = vec![
+                Cell::from(data.name.clone()),
+                Cell::from(data.status.clone()),
+                Cell::from(data.destination.clone()),
+                Cell::from(data.time.clone()),
+            ];
+            Row::new(cells)
                 .style(Style::new().fg(table.colors.row_fg).bg(color))
                 .height(1)
         });

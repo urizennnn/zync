@@ -46,7 +46,7 @@ pub mod homepage {
                     KeyCode::Right => self.handle_right_key(input_box),
                     KeyCode::Left => self.handle_left_key(input_box),
                     KeyCode::Enter => self.handle_enter_key(input_box),
-                    KeyCode::Char('?') => self.handle_help_key(table),
+                    KeyCode::Char('?') => self.handle_help_key(table, '?', input_box),
                     KeyCode::Char(c) => self.handle_char_key(c, input_box),
                     KeyCode::Backspace => self.handle_backspace_key(input_box),
                     _ => {}
@@ -54,10 +54,16 @@ pub mod homepage {
             }
             Ok(())
         }
-        fn handle_help_key(&mut self, table: &mut TableWidget) {
+        fn handle_help_key(
+            &mut self,
+            table: &mut TableWidget,
+            key: char,
+            input_box: &mut InputBox,
+        ) {
             if !self.show_api_popup {
                 table.help = !table.help;
             }
+            self.handle_char_key(key, input_box);
         }
 
         fn handle_q_key(&mut self, input_box: &mut InputBox, table: &mut TableWidget) {
@@ -155,12 +161,12 @@ pub mod homepage {
         }
         fn handle_up_key(&mut self, table: &mut TableWidget) {
             if !table.help {
-                table.next();
+                table.previous();
             }
         }
         fn handle_down_arrow(&mut self, table: &mut TableWidget) {
             if !table.help {
-                table.previous();
+                table.next();
             }
         }
 
@@ -174,18 +180,35 @@ pub mod homepage {
             let mut input_box = InputBox::default();
             let mut help = HelpPopup::new();
             let mut table = TableWidget::new();
+            let status = Line::from(Span::styled(
+                "Not Sent",
+                Style::default().fg(ratatui::style::Color::Red),
+            ));
             table.add_item(
                 "File 1".to_string(),
-                "Not Sent".to_string(),
+                status,
                 "Urizen".to_string(),
                 "Just now".to_string(),
             );
             table.add_item(
                 "File 2".to_string(),
-                "Sending".to_string(),
+                Line::from(Span::styled(
+                    "Sending",
+                    Style::default().fg(ratatui::style::Color::Yellow),
+                )),
                 "Urizen".to_string(),
                 "10 mins ago".to_string(),
             );
+            table.add_item(
+                "File 1".to_string(),
+                Line::from(Span::styled(
+                    "Sent",
+                    Style::default().fg(ratatui::style::Color::Green),
+                )),
+                "Urizen".to_string(),
+                "Just now".to_string(),
+            );
+
             let mut api_popup = ApiPopup::new();
             while self.running {
                 if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {

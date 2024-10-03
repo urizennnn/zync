@@ -25,6 +25,11 @@ pub mod help_popup {
         }
         pub fn draw_dashboard_help(&mut self, frame: &mut Frame) {
             let area = calculate_popup_area(frame.area(), 50, 40);
+            let topic = Line::from(vec![Span::styled(
+                "-- Dashboard Help --",
+                Style::default().fg(Color::Green),
+            )])
+            .centered();
 
             let keybindings = vec![
         Line::from(vec![
@@ -45,13 +50,10 @@ pub mod help_popup {
         ]),
     ];
 
-            let content = vec![
-                Line::from(""), // Empty line for padding
-                Line::from(""), // Empty line for spacing
-            ]
-            .into_iter()
-            .chain(keybindings)
-            .collect::<Vec<Line>>();
+            let content = vec![Line::from(""), topic, Line::from("")]
+                .into_iter()
+                .chain(keybindings)
+                .collect::<Vec<Line>>();
 
             let help_popup = Paragraph::new(content)
                 .block(
