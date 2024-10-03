@@ -67,17 +67,22 @@ pub mod homepage {
         }
 
         fn handle_q_key(&mut self, input_box: &mut InputBox, table: &mut TableWidget) {
-            if self.show_api_popup {
-                self.handle_char_key('q', input_box);
-            } else if self.show_popup {
-                self.popup_tx
-                    .send((self.selected_button as u16, Some(false)))
-                    .unwrap();
-                self.show_popup = false;
-            } else if self.render_url_popup {
-            } else if table.help {
-            } else {
-                self.running = false;
+            match (
+                self.show_api_popup,
+                self.show_popup,
+                self.render_url_popup,
+                table.help,
+            ) {
+                (true, _, _, _) => self.handle_char_key('q', input_box),
+                (_, true, _, _) => {
+                    self.popup_tx
+                        .send((self.selected_button as u16, Some(false)))
+                        .unwrap();
+                    self.show_popup = false;
+                }
+                (_, _, true, _) => {}
+                (_, _, _, true) => {}
+                _ => self.running = false,
             }
         }
 
