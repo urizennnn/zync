@@ -8,7 +8,7 @@ use std::{
     panic::{take_hook, PanicHookInfo},
     sync::{Arc, Mutex},
 };
-use tcshare_ui::home;
+use zync::home;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

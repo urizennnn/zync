@@ -1040,9 +1040,12 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.19.0"
+version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
+checksum = "82881c4be219ab5faaf2ad5e5e5ecdff8c66bd7402ca3160975c93b24961afd1"
+dependencies = [
+ "portable-atomic",
+]
 
 [[package]]
 name = "open"
@@ -1180,6 +1183,12 @@ name = "pkg-config"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "953ec861398dccce10c670dfeaf3ec4911ca479e9c02154b3a215178c5f566f2"
+
+[[package]]
+name = "portable-atomic"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc9c68a3f6da06753e9335d63e27f6b9754dd1920d941135b7ea8224f141adb2"
 
 [[package]]
 name = "powerfmt"
@@ -1718,41 +1727,6 @@ name = "tailwind"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5211e71d69bfca1f5c2e1eba962bd2caae2992be8969228940f0a06778484276"
-
-[[package]]
-name = "tcshare-ui"
-version = "0.1.0"
-dependencies = [
- "better-panic",
- "color-eyre",
- "crossterm",
- "derive_setters",
- "dialoguer",
- "dirs",
- "human-panic",
- "itertools",
- "libc",
- "lipsum",
- "log",
- "nanoid",
- "open",
- "rand",
- "ratatui",
- "reqwest",
- "serde",
- "serde_json",
- "strip-ansi-escapes",
- "strum",
- "style",
- "tailwind",
- "tokio",
- "tui-big-text",
- "tui-logger",
- "tui-textarea",
- "tui_confirm_dialog",
- "unicode-width 0.2.0",
- "whoami",
-]
 
 [[package]]
 name = "tempfile"
@@ -2495,3 +2469,39 @@ name = "zeroize"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ced3678a2879b30306d323f4542626697a464a97c0a07c9aebf7ebca65cd4dde"
+
+[[package]]
+name = "zync"
+version = "0.1.0"
+dependencies = [
+ "better-panic",
+ "color-eyre",
+ "crossterm",
+ "derive_setters",
+ "dialoguer",
+ "dirs",
+ "human-panic",
+ "itertools",
+ "libc",
+ "lipsum",
+ "log",
+ "nanoid",
+ "once_cell",
+ "open",
+ "rand",
+ "ratatui",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "strip-ansi-escapes",
+ "strum",
+ "style",
+ "tailwind",
+ "tokio",
+ "tui-big-text",
+ "tui-logger",
+ "tui-textarea",
+ "tui_confirm_dialog",
+ "unicode-width 0.2.0",
+ "whoami",
+]
