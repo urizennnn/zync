@@ -8,6 +8,11 @@ pub mod protocol_popup {
     };
     use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
+    use crate::{
+        dashboard::dashboard_view::TableWidget,
+        popup::{calculate_popup_area, InputBox},
+    };
+
     #[derive(Debug, Clone, Copy, PartialEq, FromRepr, Display, EnumIter)]
     #[repr(usize)]
     pub enum ConnectionType {
@@ -110,6 +115,18 @@ pub mod protocol_popup {
 
         pub fn previous(&mut self) {
             self.selected = self.selected.previous_val();
+        }
+        pub fn return_selected(&self, table: &mut TableWidget) -> ConnectionType {
+            table.connection = !table.connection;
+            let selected: ConnectionType = self.selected;
+            selected
+        }
+
+        pub fn draw_input(&mut self, f: &mut Frame) {
+            let input_widget = InputBox::new();
+            let area = calculate_popup_area(f.area(), 20, 30);
+            f.render_widget(Clear, f.area());
+            input_widget.draw_in_popup(f, area);
         }
     }
 

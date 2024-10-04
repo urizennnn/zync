@@ -59,7 +59,14 @@ pub mod homepage {
                         }
                         self.handle_left_key(input_box)
                     }
-                    KeyCode::Enter => self.handle_enter_key(input_box),
+                    KeyCode::Enter => {
+                        if table.connection {
+                            connection.return_selected(table);
+                            connection.input_popup = true;
+                            return Ok(());
+                        }
+                        self.handle_enter_key(input_box)
+                    }
                     KeyCode::Char('?') => self.handle_help_key(table, '?', input_box),
                     KeyCode::Char(c) => self.handle_char_key(c, input_box),
                     KeyCode::Backspace => self.handle_backspace_key(input_box),
@@ -257,6 +264,9 @@ pub mod homepage {
                             }
                             if table.connection {
                                 connection.render(f);
+                            }
+                            if connection.input_popup {
+                                connection.draw_input(f);
                             }
                         })?;
                     }

@@ -170,6 +170,9 @@ impl InputBox {
 
     pub fn submit_message(&mut self) -> String {
         let input_msg = self.input.clone();
+        if input_msg.is_empty() {
+            todo!("Implement error popup");
+        }
         self.input.clear();
         self.reset_cursor();
         input_msg
