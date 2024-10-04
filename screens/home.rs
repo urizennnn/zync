@@ -15,6 +15,7 @@ pub mod homepage {
 
     use crate::core::core_lib::{check_config, create_config};
     use crate::dashboard::dashboard_view::{ui, TableWidget};
+    use crate::error::error_popup::{self, ErrorPopupConfig};
     use crate::help::help_popup::HelpPopup;
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
     use crate::protocol::protocol_popup::ConnectionPopup;
@@ -37,6 +38,7 @@ pub mod homepage {
             input_box: &mut InputBox,
             table: &mut TableWidget,
             connection: &mut ConnectionPopup,
+            api: &mut ApiPopup,
         ) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -65,7 +67,7 @@ pub mod homepage {
                             connection.input_popup = true;
                             return Ok(());
                         }
-                        self.handle_enter_key(input_box)
+                        self.handle_enter_key(input_box, api)
                     }
                     KeyCode::Char('?') => self.handle_help_key(table, '?', input_box),
                     KeyCode::Char(c) => self.handle_char_key(c, input_box),
@@ -156,7 +158,7 @@ pub mod homepage {
                 input_box.move_cursor_left();
             }
         }
-        fn handle_enter_key(&mut self, input_box: &mut InputBox) {
+        fn handle_enter_key(&mut self, input_box: &mut InputBox, api: &mut ApiPopup) {
             if self.show_popup {
                 self.popup_tx
                     .send((self.selected_button as u16, Some(true)))
@@ -165,12 +167,12 @@ pub mod homepage {
             } else {
                 match input_box.input_mode == InputMode::Editing {
                     true => {
-                        let api = input_box.submit_message();
+                        let api = input_box.submit_message(api);
                         create_config(&api).unwrap();
                         self.show_api_popup = false;
                     }
                     false => {
-                        let output = input_box.submit_message();
+                        let output = input_box.submit_message(api);
                         create_config(&output).unwrap();
                         self.show_api_popup = false;
                     }
@@ -207,6 +209,7 @@ pub mod homepage {
             let mut input_box = InputBox::default();
             let mut help = HelpPopup::new();
             let mut table = TableWidget::new();
+            let mut error_popup = ErrorPopupConfig::new();
             let status = Line::from(Span::styled(
                 "Not Sent",
                 Style::default().fg(ratatui::style::Color::Red),
@@ -277,18 +280,26 @@ pub mod homepage {
                             if self.show_popup {
                                 self.render_notification(f);
                             }
-
                             if self.show_api_popup {
                                 api_popup.draw(f, &input_box);
                             }
                             if self.render_url_popup {
                                 api_popup.render_url(f);
                             }
+                            if api_popup.error {
+                                error_popup.set_val(
+                                    " Error".to_string(),
+                                    error_popup::ErrorLevel::Error,
+                                    "API key cannot be empty".to_string(),
+                                    None,
+                                );
+                                error_popup.draw(f);
+                            }
                         })?;
                     }
                 }
 
-                self.handle_events(&mut input_box, &mut table, &mut connection)?;
+                self.handle_events(&mut input_box, &mut table, &mut connection, &mut api_popup)?;
             }
             Ok(())
         }
@@ -296,7 +307,7 @@ pub mod homepage {
         fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
             let text = BigTextBuilder::default()
                 .pixel_size(tui_big_text::PixelSize::Quadrant)
-                .lines(["TCSHARE".into()])
+                .lines(["ZYNC".into()])
                 .style(Style::default().fg(ratatui::style::Color::Red))
                 .build();
             let line = Home::create_line();
@@ -304,7 +315,7 @@ pub mod homepage {
         }
 
         fn create_line() -> Vec<Line<'static>> {
-            let line = "Welcome to TCSHARE. Hit n to start your new file sharing session.";
+            let line = "Welcome to Zync. Hit n to start your new file sharing session.";
             let styled_text = Span::styled(line, Style::default().add_modifier(Modifier::BOLD));
             vec![Line::from(styled_text)]
         }
