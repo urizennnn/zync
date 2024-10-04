@@ -17,6 +17,7 @@ pub mod homepage {
     use crate::dashboard::dashboard_view::{ui, TableWidget};
     use crate::help::help_popup::HelpPopup;
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
+    use crate::protocol::protocol_popup::ConnectionPopup;
 
     pub struct Home {
         running: bool,
@@ -35,16 +36,29 @@ pub mod homepage {
             &mut self,
             input_box: &mut InputBox,
             table: &mut TableWidget,
+            connection: &mut ConnectionPopup,
         ) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => self.handle_q_key(input_box, table),
-                    KeyCode::Char('n') => self.handle_n_key('n', input_box),
+                    KeyCode::Char('n') => self.handle_n_key('n', input_box, table),
                     KeyCode::Down => self.handle_down_arrow(table),
                     KeyCode::Up => self.handle_up_key(table),
-                    KeyCode::Esc => self.handle_esc_key(input_box, table),
-                    KeyCode::Right => self.handle_right_key(input_box),
-                    KeyCode::Left => self.handle_left_key(input_box),
+                    KeyCode::Esc => self.handle_esc_key(input_box),
+                    KeyCode::Right => {
+                        if table.connection {
+                            connection.selected = connection.selected.next_val();
+                            return Ok(());
+                        }
+                        self.handle_right_key(input_box)
+                    }
+                    KeyCode::Left => {
+                        if table.connection {
+                            connection.selected = connection.selected.previous_val();
+                            return Ok(());
+                        }
+                        self.handle_left_key(input_box)
+                    }
                     KeyCode::Enter => self.handle_enter_key(input_box),
                     KeyCode::Char('?') => self.handle_help_key(table, '?', input_box),
                     KeyCode::Char(c) => self.handle_char_key(c, input_box),
@@ -72,29 +86,33 @@ pub mod homepage {
                 self.show_popup,
                 self.render_url_popup,
                 table.help,
+                table.connection,
             ) {
-                (true, _, _, _) => self.handle_char_key('q', input_box),
-                (_, true, _, _) => {
+                (true, _, _, _, _) => self.handle_char_key('q', input_box),
+                (_, true, _, _, _) => {
                     self.popup_tx
                         .send((self.selected_button as u16, Some(false)))
                         .unwrap();
                     self.show_popup = false;
                 }
-                (_, _, true, _) => {}
-                (_, _, _, true) => {}
+                (_, _, true, _, _) => {}
+                (_, _, _, true, _) => {}
+                (_, _, _, _, true) => {}
                 _ => self.running = false,
             }
         }
 
-        fn handle_n_key(&mut self, c: char, input_box: &mut InputBox) {
+        fn handle_n_key(&mut self, c: char, input_box: &mut InputBox, table: &mut TableWidget) {
             if self.show_api_popup {
                 self.handle_char_key(c, input_box);
-            } else {
+            } else if !self.show_popup {
                 self.show_popup = true;
+            } else {
+                table.connection = !table.connection;
             }
         }
 
-        fn handle_esc_key(&mut self, input_box: &mut InputBox, table: &mut TableWidget) {
+        fn handle_esc_key(&mut self, input_box: &mut InputBox) {
             if self.show_popup {
                 self.popup_tx
                     .send((self.selected_button as u16, Some(false)))
@@ -107,8 +125,6 @@ pub mod homepage {
                 self.show_api_popup = false;
             } else if self.render_url_popup {
                 self.render_url_popup = false;
-            } else if table.help {
-                table.help = false;
             }
         }
 
@@ -133,7 +149,6 @@ pub mod homepage {
                 input_box.move_cursor_left();
             }
         }
-
         fn handle_enter_key(&mut self, input_box: &mut InputBox) {
             if self.show_popup {
                 self.popup_tx
@@ -165,12 +180,12 @@ pub mod homepage {
             }
         }
         fn handle_up_key(&mut self, table: &mut TableWidget) {
-            if !table.help {
+            if !table.help && !table.connection {
                 table.previous();
             }
         }
         fn handle_down_arrow(&mut self, table: &mut TableWidget) {
-            if !table.help {
+            if !table.help && !table.connection {
                 table.next();
             }
         }
@@ -213,7 +228,7 @@ pub mod homepage {
                 "Urizen".to_string(),
                 "Just now".to_string(),
             );
-
+            let mut connection = ConnectionPopup::new();
             let mut api_popup = ApiPopup::new();
             while self.running {
                 if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
@@ -240,6 +255,9 @@ pub mod homepage {
                             if table.help {
                                 help.draw_dashboard_help(f);
                             }
+                            if table.connection {
+                                connection.render(f);
+                            }
                         })?;
                     }
                     Err(_) => {
@@ -260,7 +278,7 @@ pub mod homepage {
                     }
                 }
 
-                self.handle_events(&mut input_box, &mut table)?;
+                self.handle_events(&mut input_box, &mut table, &mut connection)?;
             }
             Ok(())
         }

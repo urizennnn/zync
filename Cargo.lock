@@ -1742,6 +1742,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strip-ansi-escapes",
+ "strum",
  "style",
  "tailwind",
  "tokio",

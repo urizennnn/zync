@@ -15,3 +15,9 @@ pub mod dashboard;
 
 #[path = "../screens/help.rs"]
 pub mod help;
+
+// #[path = "../lib/tcp/*"]
+// pub mod tcp;
+//
+#[path = "../screens/protocol_popup.rs"]
+pub mod protocol;

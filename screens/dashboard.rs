@@ -20,6 +20,7 @@ pub mod dashboard_view {
         scroll_state: ScrollbarState,
         colors: TableColors,
         pub help: bool,
+        pub connection: bool,
     }
 
     const ITEM_HEIGHT: usize = 2;
@@ -28,6 +29,7 @@ pub mod dashboard_view {
         #[allow(clippy::new_without_default)]
         pub fn new() -> Self {
             Self {
+                connection: false,
                 state: TableState::default(),
                 items: Vec::new(),
                 longest_item_lens: (0, 0, 0, 0),
