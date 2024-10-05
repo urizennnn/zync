@@ -15,11 +15,13 @@ pub struct ApiPopup {
     pub title: String,
     pub message: String,
     pub input: InputBox,
+    pub error: bool,
 }
 
 impl ApiPopup {
     pub fn new() -> Self {
         Self {
+            error: false,
             title: "API Key".to_string(),
             message: "Please input your API key".to_string(),
             input: InputBox::new(),
@@ -168,14 +170,17 @@ impl InputBox {
         self.character_index = 0;
     }
 
-    pub fn submit_message(&mut self) -> String {
+    pub fn submit_message(&mut self) -> Result<String, &'static str> {
         let input_msg = self.input.clone();
+
         if input_msg.is_empty() {
-            todo!("Implement error popup");
+            return Err("API key cannot be empty");
         }
+
         self.input.clear();
         self.reset_cursor();
-        input_msg
+
+        Ok(input_msg)
     }
 
     pub fn draw_in_popup(&self, frame: &mut Frame, area: Rect) {

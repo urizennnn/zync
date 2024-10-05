@@ -11,7 +11,7 @@ pub mod core_lib {
 
         let config_path = dirs::config_dir()
             .ok_or("Config directory not found")?
-            .join("tcshare")
+            .join("zync")
             .join("config.json");
 
         if !config_path.exists() {
@@ -31,7 +31,7 @@ pub mod core_lib {
 
         let config_path = dirs::config_dir()
             .ok_or("Config directory not found")?
-            .join("tcshare")
+            .join("zync")
             .join("config.json");
 
         if config_path.exists() {
@@ -40,7 +40,7 @@ pub mod core_lib {
         }
 
         let app_config = App {
-            name: "TCShare".to_string(),
+            name: "Zync".to_string(),
             version: "1.0.0".to_string(),
             key: key.to_string(),
             secret: client_secret,

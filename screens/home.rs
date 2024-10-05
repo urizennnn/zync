@@ -15,7 +15,7 @@ pub mod homepage {
 
     use crate::core::core_lib::{check_config, create_config};
     use crate::dashboard::dashboard_view::{ui, TableWidget};
-    use crate::error::error_popup::{self, ErrorPopupConfig};
+    use crate::error::error_widget::ErrorWidget;
     use crate::help::help_popup::HelpPopup;
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
     use crate::protocol::protocol_popup::ConnectionPopup;
@@ -30,6 +30,7 @@ pub mod homepage {
         pub popup_tx: mpsc::Sender<Listener>,
         pub popup_rx: mpsc::Receiver<Listener>,
         pub popup_dialog: ConfirmDialogState,
+        pub error: bool,
     }
 
     impl Home {
@@ -38,7 +39,7 @@ pub mod homepage {
             input_box: &mut InputBox,
             table: &mut TableWidget,
             connection: &mut ConnectionPopup,
-            api: &mut ApiPopup,
+            error: &mut ErrorWidget,
         ) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -64,10 +65,9 @@ pub mod homepage {
                     KeyCode::Enter => {
                         if table.connection {
                             connection.return_selected(table);
-                            connection.input_popup = true;
                             return Ok(());
                         }
-                        self.handle_enter_key(input_box, api)
+                        self.handle_enter_key(input_box, error)
                     }
                     KeyCode::Char('?') => self.handle_help_key(table, '?', input_box),
                     KeyCode::Char(c) => self.handle_char_key(c, input_box),
@@ -158,7 +158,7 @@ pub mod homepage {
                 input_box.move_cursor_left();
             }
         }
-        fn handle_enter_key(&mut self, input_box: &mut InputBox, api: &mut ApiPopup) {
+        fn handle_enter_key(&mut self, input_box: &mut InputBox, error: &mut ErrorWidget) {
             if self.show_popup {
                 self.popup_tx
                     .send((self.selected_button as u16, Some(true)))
@@ -167,14 +167,40 @@ pub mod homepage {
             } else {
                 match input_box.input_mode == InputMode::Editing {
                     true => {
-                        let api = input_box.submit_message(api);
-                        create_config(&api).unwrap();
-                        self.show_api_popup = false;
+                        let api = input_box.submit_message();
+                        match api {
+                            Ok(api) => {
+                                create_config(&api).unwrap();
+                                self.show_api_popup = false;
+                            }
+                            Err(err) => {
+                                self.show_api_popup = false;
+                                error.set_val(
+                                    err.to_string(),
+                                    &mut crate::error::error_widget::ErrorType::Warning,
+                                    "Ok".to_string(),
+                                );
+                                self.error = true;
+                            }
+                        }
                     }
                     false => {
-                        let output = input_box.submit_message(api);
-                        create_config(&output).unwrap();
-                        self.show_api_popup = false;
+                        let output = input_box.submit_message();
+                        match output {
+                            Ok(key) => {
+                                create_config(&key).unwrap();
+                                self.show_api_popup = false;
+                            }
+                            Err(err) => {
+                                self.show_api_popup = false;
+                                error.set_val(
+                                    err.to_string(),
+                                    &mut crate::error::error_widget::ErrorType::Warning,
+                                    "Ok".to_string(),
+                                );
+                                self.error = true;
+                            }
+                        }
                     }
                 }
             }
@@ -209,7 +235,6 @@ pub mod homepage {
             let mut input_box = InputBox::default();
             let mut help = HelpPopup::new();
             let mut table = TableWidget::new();
-            let mut error_popup = ErrorPopupConfig::new();
             let status = Line::from(Span::styled(
                 "Not Sent",
                 Style::default().fg(ratatui::style::Color::Red),
@@ -240,6 +265,7 @@ pub mod homepage {
             );
             let mut connection = ConnectionPopup::new();
             let mut api_popup = ApiPopup::new();
+            let mut error = ErrorWidget::new();
             while self.running {
                 if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
                     match confirmed {
@@ -286,20 +312,14 @@ pub mod homepage {
                             if self.render_url_popup {
                                 api_popup.render_url(f);
                             }
-                            if api_popup.error {
-                                error_popup.set_val(
-                                    " Error".to_string(),
-                                    error_popup::ErrorLevel::Error,
-                                    "API key cannot be empty".to_string(),
-                                    None,
-                                );
-                                error_popup.draw(f);
+                            if self.error {
+                                error.render_popup(f);
                             }
                         })?;
                     }
                 }
 
-                self.handle_events(&mut input_box, &mut table, &mut connection, &mut api_popup)?;
+                self.handle_events(&mut input_box, &mut table, &mut connection, &mut error)?;
             }
             Ok(())
         }
@@ -360,6 +380,7 @@ pub mod homepage {
         pub fn new() -> Self {
             let (tx, rx) = std::sync::mpsc::channel();
             Self {
+                error: false,
                 show_api_popup: false,
                 show_api_dialog: ConfirmDialogState::default(),
                 running: true,

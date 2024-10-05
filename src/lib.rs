@@ -21,3 +21,6 @@ pub mod help;
 //
 #[path = "../screens/protocol_popup.rs"]
 pub mod protocol;
+
+#[path = "../screens/error.rs"]
+pub mod error;
