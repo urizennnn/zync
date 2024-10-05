@@ -9,6 +9,8 @@ pub mod homepage {
     };
     use std::sync::mpsc::{self};
     use std::sync::{Arc, Mutex};
+    use std::thread;
+    use std::time::Duration;
     use std::{error::Error, io};
     use tui_big_text::{BigText, BigTextBuilder};
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
