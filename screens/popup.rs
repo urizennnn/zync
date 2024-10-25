@@ -3,7 +3,7 @@ use derive_setters::Setters;
 use ratatui::layout::{Constraint, Layout, Position};
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Span, Text};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Block, Paragraph, Wrap};
 use ratatui::{layout::Alignment, style::Color, Frame};
 use ratatui::{layout::Rect, text::Line, widgets::Clear};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
@@ -41,7 +41,7 @@ impl ApiPopup {
         let url = Paragraph::new(text)
             .block(
                 Block::default()
-                    .borders(Borders::ALL)
+                    .borders(ratatui::widgets::Borders::ALL)
                     .border_type(ratatui::widgets::BorderType::Rounded),
             )
             .style(Style::default().fg(Color::Gray))
@@ -95,7 +95,7 @@ impl ApiPopup {
         input.draw_help(frame, help_area);
 
         let popup_block = Block::default()
-            .borders(Borders::ALL)
+            .borders(ratatui::widgets::Borders::ALL)
             .border_type(ratatui::widgets::BorderType::Rounded)
             .style(Style::default().fg(Color::Gray));
         frame.render_widget(popup_block, area);
@@ -195,7 +195,7 @@ impl InputBox {
                 InputMode::Normal => Style::default(),
                 InputMode::Editing => Style::default().fg(Color::Yellow),
             })
-            .block(Block::default().borders(Borders::ALL).title("Input"));
+            .block(Block::default().borders(ratatui::widgets::Borders::ALL).title("Input"));
         frame.render_widget(input, area);
 
         if input_mode == InputMode::Editing {
@@ -266,8 +266,8 @@ impl Home {
     pub fn render_notification(&mut self, frame: &mut Frame) {
         self.popup_dialog = ConfirmDialogState::default()
             .modal(true)
-            .with_title(Span::styled("Notification", Style::new().bold().cyan()))
-            .with_text(vec![Line::from("Do you have an api key?")])
+            .with_title(Line::from("Notification").cyan().centered().into())
+            .with_text(vec![Line::from("Do you have an api key?")].into())
             .with_yes_button(ButtonLabel::from("(Y)es").unwrap())
             .with_no_button(ButtonLabel::from("(N)o").unwrap())
             .with_yes_button_selected(self.selected_button == 0)
@@ -278,7 +278,7 @@ impl Home {
 
         if self.popup_dialog.is_opened() {
             let popup = ConfirmDialog::default()
-                .borders(Borders::ALL)
+                .borders(ratatui::widgets::Borders::ALL)
                 .bg(ratatui::style::Color::Black)
                 .border_type(ratatui::widgets::BorderType::Rounded)
                 .button_style(ratatui::prelude::Style::default())
