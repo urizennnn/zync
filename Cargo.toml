@@ -34,7 +34,7 @@ tokio ={version="1.41.0", features=["full"]}
 tui-big-text = "0.7.0"
 tui-logger = "0.13.2"
 tui-textarea = "0.7.0"
-tui_confirm_dialog = "0.2.3"
+tui_confirm_dialog = "0.2.4"
 unicode-width = "0.2.0"
 whoami = "1.5.2"
 
