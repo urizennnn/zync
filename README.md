@@ -62,7 +62,7 @@
 
 <!-- Method 2: Using img tag with width specification -->
 <div align="center">
-  <img src="assets/logo.svg" width="240" alt="Zync Logo">
+  <img src="media/zync-logo-borderless.svg" width="240" alt="Zync Logo">
 </div>
 
 <!-- Method 3: Using HTML picture tag for better control -->
