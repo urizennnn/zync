@@ -288,7 +288,8 @@ pub mod dashboard_view {
             ],
         )
         .header(header)
-        .highlight_style(selected_style)
+        .row_highlight_style(selected_style)
+        // .highlight_style(selected_style)
         .highlight_symbol(Text::from(vec![
             "".into(),
             bar.into(),

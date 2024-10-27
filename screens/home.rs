@@ -134,6 +134,8 @@ pub mod homepage {
                 self.show_api_popup = false;
             } else if self.render_url_popup {
                 self.render_url_popup = false;
+            }else if self.error {
+                self.error = false;
             }
         }
 
