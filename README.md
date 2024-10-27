@@ -2,7 +2,6 @@
   <img src="media/zync-logo-borderless.svg" width="240" alt="Zync Logo">
 </div>
 
-[![dependency status](https://deps.rs/repo/github/gin66/tui-logger/status.svg?service=github&nocache=0_9_1)](https://deps.rs/repo/github/urizennnn/zync)
 [![rustc](https://img.shields.io/badge/rustc-1.54+-blue.svg)](https://www.rust-lang.org)
 [![dependency status](https://deps.rs/repo/github/urizennnn/zync/status.svg)](https://deps.rs/repo/github/urizennnn/zync)
 [![GitHub contributors](https://img.shields.io/github/contributors/urizennnn/zync)](https://github.com/urizennnn/zync/graphs/contributors)
