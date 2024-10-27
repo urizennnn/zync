@@ -1247,28 +1247,6 @@ dependencies = [
 
 [[package]]
 name = "ratatui"
-version = "0.28.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdef7f9be5c0122f890d58bdf4d964349ba6a6161f705907526d891efabba57d"
-dependencies = [
- "bitflags",
- "cassowary",
- "compact_str",
- "crossterm",
- "instability",
- "itertools",
- "lru",
- "paste",
- "strum",
- "strum_macros",
- "time",
- "unicode-segmentation",
- "unicode-truncate",
- "unicode-width 0.1.14",
-]
-
-[[package]]
-name = "ratatui"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eabd94c2f37801c20583fc49dd5cd6b0ba68c716787c2dd6ed18571e1e63117b"
@@ -1283,6 +1261,7 @@ dependencies = [
  "lru",
  "paste",
  "strum",
+ "time",
  "unicode-segmentation",
  "unicode-truncate",
  "unicode-width 0.2.0",
@@ -1977,21 +1956,20 @@ dependencies = [
  "derive_builder",
  "font8x8",
  "itertools",
- "ratatui 0.29.0",
+ "ratatui",
 ]
 
 [[package]]
 name = "tui-logger"
-version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "618b8256e4b8f2abf852121f2d72f9d0e7f091a6456e46d0e786b640e86ad130"
+version = "0.13.3"
+source = "git+https://github.com/gin66/tui-logger.git#f2bb9848667ba4ac36b2571e05e2a3fd0413de0d"
 dependencies = [
  "chrono",
  "fxhash",
  "lazy_static",
  "log",
  "parking_lot",
- "ratatui 0.28.1",
+ "ratatui",
 ]
 
 [[package]]
@@ -2001,19 +1979,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0a5318dd619ed73c52a9417ad19046724effc1287fb75cdcc4eca1d6ac1acbae"
 dependencies = [
  "crossterm",
- "ratatui 0.29.0",
+ "ratatui",
  "unicode-width 0.2.0",
 ]
 
 [[package]]
 name = "tui_confirm_dialog"
 version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb7cff44fe3fd2024e679b080358d59383179f67fcc8950a8aa63f306c3d70a2"
+source = "git+https://github.com/urizennnn/tui-confirm-dialog.git?branch=bump/crate-versions#c6cdc051f1b4af225269b1729e1d8d15705b66d4"
 dependencies = [
  "crossterm",
  "rand",
- "ratatui 0.28.1",
+ "ratatui",
  "regex",
 ]
 
@@ -2495,7 +2472,7 @@ dependencies = [
  "once_cell",
  "open",
  "rand",
- "ratatui 0.29.0",
+ "ratatui",
  "reqwest",
  "serde",
  "serde_json",

@@ -266,8 +266,8 @@ impl Home {
     pub fn render_notification(&mut self, frame: &mut Frame) {
         self.popup_dialog = ConfirmDialogState::default()
             .modal(true)
-            .with_title(Line::from("Notification").cyan().centered().into())
-            .with_text(vec![Line::from("Do you have an api key?")].into())
+            .with_title(Line::from("Notification").cyan().centered())
+            .with_text(vec![Line::from("Do you have an api key?")])
             .with_yes_button(ButtonLabel::from("(Y)es").unwrap())
             .with_no_button(ButtonLabel::from("(N)o").unwrap())
             .with_yes_button_selected(self.selected_button == 0)
