@@ -40,4 +40,3 @@ whoami = "1.5.2"
 
 [patch.crates-io]
 tui-logger = { git = "https://github.com/gin66/tui-logger.git"}
-tui_confirm_dialog = { git = "https://github.com/urizennnn/tui-confirm-dialog.git",branch="bump/crate-versions"}

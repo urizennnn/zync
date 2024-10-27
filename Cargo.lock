@@ -1985,8 +1985,9 @@ dependencies = [
 
 [[package]]
 name = "tui_confirm_dialog"
-version = "0.2.3"
-source = "git+https://github.com/urizennnn/tui-confirm-dialog.git?branch=bump/crate-versions#c6cdc051f1b4af225269b1729e1d8d15705b66d4"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "117929c8e294f8ceea4f56f4d09a6a4e694f057d175f2cf61433309fb01e9a94"
 dependencies = [
  "crossterm",
  "rand",
