@@ -11,11 +11,11 @@
 
 ### Demo of the project at the moment
 This is how the project looks like at the moment. The project is still in development and the final version may look different.
-![Demo](https://github.com/urizennnn/zync/tree/bump-v2/media/demo.gif?raw=true)
+![Demo](https://github.com/urizennnn/zync/blob/bump-v2/media/demo.gif?raw=true)
 
 ### Documentation
 So far this is what we have at the moment. We are planning on replacing the recent logs screen with a session screen. 
-![Session](https://github.com/urizennnn/zync/tree/bump-v2/media/session-preview.png?raw=true)
+![Session](https://github.com/urizennnn/zync/blob/bump-v2/media/session-preview.png?raw=true)
 
 This change takes priority after some major bugs have been fixed.
 
