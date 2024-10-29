@@ -107,6 +107,7 @@ pub struct InputBox {
     pub input: String,
     pub character_index: usize,
     pub input_mode: InputMode,
+    pub removed_char: Vec<char>,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -121,22 +122,52 @@ impl InputBox {
             input_mode: InputMode::Normal,
             character_index: 0,
             input: String::new(),
+            removed_char: vec![],
         }
     }
+   fn return_cloned_char(&mut self) -> Vec<char> {
+    let char_vec=    self.removed_char.clone(); 
+       let mut new_vec:Vec<char> = vec![];
+        for char in char_vec.iter() {
+                  new_vec.push(*char);
+         }
+            new_vec
+      }
+
 
     pub fn move_cursor_left(&mut self) {
         let cursor_moved_left = self.character_index.saturating_sub(1);
         self.character_index = self.clamp_cursor(cursor_moved_left);
+        
+        if self.character_index == 0 {
+            let chars = self.return_cloned_char();
+            let mut flag = true;  // use flag as a toggle control
+            
+            for (i, &char) in chars.iter().rev().enumerate() {
+                if i == chars.len() - 1 { // toggle `flag` when last char is reached
+                    flag = false;
+                }
+                if flag {
+                    self.input.insert(0, char);
+                }
+            }
+        }
     }
+
 
     pub fn move_cursor_right(&mut self) {
         let cursor_moved_right = self.character_index.saturating_add(1);
         self.character_index = self.clamp_cursor(cursor_moved_right);
     }
 
+
     pub fn enter_char(&mut self, new_char: char) {
         let index = self.byte_index();
         self.input.insert(index, new_char);
+        if self.character_index as u16 == 65 {
+          let char =  self.input.remove(0); 
+            self.removed_char.push(char);
+        }
         self.move_cursor_right();
     }
 
@@ -171,7 +202,7 @@ impl InputBox {
     }
 
     pub fn submit_message(&mut self) -> Result<String, &'static str> {
-        let input_msg = self.input.clone();
+        let mut input_msg = self.input.clone();
 
         if input_msg.is_empty() {
             return Err("API key cannot be empty");
@@ -179,6 +210,10 @@ impl InputBox {
 
         self.input.clear();
         self.reset_cursor();
+
+        for char in self.removed_char.iter().rev() {
+            input_msg.insert(0, *char);
+        }
 
         Ok(input_msg)
     }

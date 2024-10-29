@@ -24,3 +24,5 @@ pub mod protocol;
 
 #[path = "../screens/error.rs"]
 pub mod error;
+ #[path ="../screens/sessions.rs"]
+pub mod sessions;

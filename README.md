@@ -34,15 +34,15 @@ Some others that I can't think of atm
 
 ### How to run 
 Install the rust via rustup or your package installer clone this repo 
-```git
+```bash
 git clone https://github.com/urizennnn/zync.git
 ```
 then run the code using cargo 
-```rs
+```sh
 cargo run
 ```
 or if you prefer to run it in release mode to view how the human panic output errors
-```rs
+```sh
 cargo run --release
 ```
 after that follow the prompt.
