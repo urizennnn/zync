@@ -20,9 +20,9 @@ So far this is what we have at the moment. We are planning on replacing the rece
 This change takes priority after some major bugs have been fixed.
 
 ## Bugs
-- [ ] Input field character overflow
+- [x] Input field character overflow
 - [ ] Error popup has to be manually closed instead of timing out
- 
+- [ ] Due to the implementation of the overflow, another bug of scrolling back to previous inserted characters are not handled correctly
  More to come
 
 ## Features to come 
