@@ -1,156 +1,24 @@
 pub mod dashboard_view {
 
-    use std::io;
-
-    use crossterm::event::{self, Event, KeyCode};
     use ratatui::{
         layout::{Alignment, Constraint, Direction, Layout, Rect},
-        style::{palette::tailwind, Color, Modifier, Style, Stylize},
+        style::{Color, Modifier, Style, Stylize},
         text::{Line, Text},
-        widgets::{Block, Borders, Cell, Paragraph, Row, ScrollbarState, Table, TableState},
+        widgets::{Block, Borders, Cell, Paragraph, Row, Table},
         Frame,
     };
-    use unicode_width::UnicodeWidthStr;
+
+    use crate::widget::TableWidget;
 
     #[derive(Debug)]
-    pub struct TableWidget {
-        state: TableState,
-        items: Vec<Data>,
-        longest_item_lens: (u16, u16, u16, u16),
-        scroll_state: ScrollbarState,
-        colors: TableColors,
-        pub help: bool,
-        pub connection: bool,
+    pub struct Data {
+        pub name: String,
+        pub status: Line<'static>,
+        pub destination: String,
+        pub time: String,
     }
 
-    const ITEM_HEIGHT: usize = 2;
-
-    impl TableWidget {
-        #[allow(clippy::new_without_default)]
-        pub fn new() -> Self {
-            Self {
-                connection: false,
-                state: TableState::default(),
-                items: Vec::new(),
-                longest_item_lens: (0, 0, 0, 0),
-                scroll_state: ScrollbarState::default(),
-                colors: TableColors::new(&tailwind::CYAN),
-                help: false,
-            }
-        }
-
-        pub fn handle_events(&mut self) -> io::Result<()> {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Up => {
-                        self.next();
-                    }
-                    KeyCode::Down => {
-                        self.previous();
-                    }
-                    _ => {}
-                }
-            }
-            Ok(())
-        }
-
-        pub fn add_item(
-            &mut self,
-            name: String,
-            status: impl Into<Line<'static>>,
-            destination: String,
-            time: String,
-        ) {
-            self.items.push(Data {
-                name,
-                status: status.into(),
-                destination,
-                time,
-            });
-            self.longest_item_lens = Self::constraint_len_calculator(&self.items);
-        }
-
-        pub fn next(&mut self) {
-            let i = match self.state.selected() {
-                Some(i) => {
-                    if i >= self.items.len() - 1 {
-                        0
-                    } else {
-                        i + 1
-                    }
-                }
-                None => 0,
-            };
-            self.state.select(Some(i));
-            self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
-        }
-
-        pub fn previous(&mut self) {
-            let i = match self.state.selected() {
-                Some(i) => {
-                    if i == 0 {
-                        self.items.len() - 1
-                    } else {
-                        i - 1
-                    }
-                }
-                None => 0,
-            };
-            self.state.select(Some(i));
-            self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
-        }
-
-        fn constraint_len_calculator(items: &[Data]) -> (u16, u16, u16, u16) {
-            let total_width: u16 = items
-                .iter()
-                .map(|item| {
-                    item.name.width() as u16
-                        + item.status.width() as u16
-                        + item.destination.width() as u16
-                        + item.time.width() as u16
-                })
-                .max()
-                .unwrap_or(0);
-
-            let name_percent = items
-                .iter()
-                .map(|item| item.name.width() as u16)
-                .max()
-                .unwrap_or(0)
-                * 100
-                / total_width;
-            let status_percent = items
-                .iter()
-                .map(|item| item.status.width() as u16)
-                .max()
-                .unwrap_or(0)
-                * 100
-                / total_width;
-            let destination_percent = items
-                .iter()
-                .map(|item| item.destination.width() as u16)
-                .max()
-                .unwrap_or(0)
-                * 100
-                / total_width;
-            let time_percent = items
-                .iter()
-                .map(|item| item.time.width() as u16)
-                .max()
-                .unwrap_or(0)
-                * 100
-                / total_width;
-
-            (
-                name_percent,
-                status_percent,
-                destination_percent,
-                time_percent,
-            )
-        }
-    }
-
-    pub fn ui(f: &mut Frame, table: &mut TableWidget) {
+    pub fn table_ui(f: &mut Frame, table: &mut TableWidget) {
         let vertical_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(
@@ -210,40 +78,6 @@ pub mod dashboard_view {
         let stateful_table = draw_table(table);
         f.render_stateful_widget(stateful_table, main_chunks[0], &mut table_state);
         table.state = table_state;
-    }
-
-    #[derive(Debug)]
-    struct Data {
-        name: String,
-        status: Line<'static>,
-        destination: String,
-        time: String,
-    }
-
-    #[derive(Debug)]
-    struct TableColors {
-        buffer_bg: Color,
-        header_bg: Color,
-        header_fg: Color,
-        row_fg: Color,
-        selected_style_fg: Color,
-        normal_row_color: Color,
-        alt_row_color: Color,
-    }
-
-    impl TableColors {
-        const fn new(color: &tailwind::Palette) -> Self {
-            Self {
-                //c700
-                buffer_bg: tailwind::SLATE.c900,
-                header_bg: color.c900,
-                header_fg: tailwind::SLATE.c200,
-                row_fg: tailwind::SLATE.c200,
-                selected_style_fg: color.c400,
-                normal_row_color: tailwind::SLATE.c950,
-                alt_row_color: tailwind::SLATE.c900,
-            }
-        }
     }
 
     fn draw_table(table: &TableWidget) -> ratatui::widgets::Table<'_> {

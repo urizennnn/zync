@@ -24,5 +24,9 @@ pub mod protocol;
 
 #[path = "../screens/error.rs"]
 pub mod error;
- #[path ="../screens/sessions.rs"]
+
+#[path = "../screens/session.rs"]
 pub mod sessions;
+
+#[path = "../lib/core/widgets.rs"]
+pub mod widget;

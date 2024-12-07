@@ -9,8 +9,8 @@ pub mod protocol_popup {
     use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
     use crate::{
-        dashboard::dashboard_view::TableWidget,
         popup::{calculate_popup_area, InputBox},
+        widget::TableWidget,
     };
 
     #[derive(Debug, Clone, Copy, PartialEq, FromRepr, Display, EnumIter)]

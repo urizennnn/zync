@@ -14,11 +14,12 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::{check_config, create_config};
-    use crate::dashboard::dashboard_view::{ui, TableWidget};
+    use crate::dashboard::dashboard_view::table_ui;
     use crate::error::error_widget::ErrorWidget;
     use crate::help::help_popup::HelpPopup;
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
     use crate::protocol::protocol_popup::ConnectionPopup;
+    use crate::widget::TableWidget;
 
     pub struct Home {
         running: bool,
@@ -134,7 +135,7 @@ pub mod homepage {
                 self.show_api_popup = false;
             } else if self.render_url_popup {
                 self.render_url_popup = false;
-            }else if self.error {
+            } else if self.error {
                 self.error = false;
             }
         }
@@ -289,7 +290,7 @@ pub mod homepage {
                 match check_config() {
                     Ok(_) => {
                         term.lock().unwrap().draw(|f| {
-                            ui(f, &mut table);
+                            table_ui(f, &mut table);
                             if table.help {
                                 help.draw_dashboard_help(f);
                             }
