@@ -8,20 +8,58 @@ use ratatui::{
     widgets::{ScrollbarState, TableState},
 };
 
-use crate::dashboard::dashboard_view::Data;
+use crate::{dashboard::dashboard_view::Data, sessions::Device};
+
+const ITEM_HEIGHT: usize = 2;
+#[derive(Debug)]
+pub enum Item {
+    Data(Data),
+    Device(Device),
+}
 
 #[derive(Debug)]
 pub struct TableWidget {
     pub state: TableState,
-    pub items: Vec<Data>,
-    pub longest_item_lens: (u16, u16, u16, u16),
+    pub items: Vec<Item>,
+    pub longest_item_lens: Vec<u16>,
     pub scroll_state: ScrollbarState,
     pub colors: TableColors,
     pub help: bool,
     pub connection: bool,
 }
 
-const ITEM_HEIGHT: usize = 2;
+#[derive(Debug)]
+pub struct TableColors {
+    pub buffer_bg: Color,
+    pub header_bg: Color,
+    pub header_fg: Color,
+    pub row_fg: Color,
+    pub selected_style_fg: Color,
+    pub normal_row_color: Color,
+    pub alt_row_color: Color,
+}
+
+impl TableColors {
+    pub const fn new(color: &tailwind::Palette) -> Self {
+        Self {
+            //c700
+            buffer_bg: tailwind::SLATE.c900,
+            header_bg: color.c900,
+            header_fg: tailwind::SLATE.c200,
+            row_fg: tailwind::SLATE.c200,
+            selected_style_fg: color.c400,
+            normal_row_color: tailwind::SLATE.c950,
+            alt_row_color: tailwind::SLATE.c900,
+        }
+    }
+}
+
+pub trait TableWidgetItemManager {
+    type Item;
+
+    fn add_item(&mut self, item: Self::Item, table: &mut TableWidget);
+    fn constraint_len_calculator(items: &[Self::Item]) -> Vec<u16>;
+}
 
 impl TableWidget {
     #[allow(clippy::new_without_default)]
@@ -30,7 +68,7 @@ impl TableWidget {
             connection: false,
             state: TableState::default(),
             items: Vec::new(),
-            longest_item_lens: (0, 0, 0, 0),
+            longest_item_lens: vec![0; 4],
             scroll_state: ScrollbarState::default(),
             colors: TableColors::new(&tailwind::CYAN),
             help: false,
@@ -59,13 +97,26 @@ impl TableWidget {
         destination: String,
         time: String,
     ) {
-        self.items.push(Data {
+        self.items.push(Item::Data(Data {
             name,
             status: status.into(),
             destination,
             time,
-        });
-        self.longest_item_lens = Self::constraint_len_calculator(&self.items);
+        }));
+
+        let data_items: Vec<&Data> = self
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let Item::Data(data) = item {
+                    Some(data)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        self.longest_item_lens = Self::constraint_len_calculator(&data_items);
     }
 
     pub fn next(&mut self) {
@@ -98,7 +149,7 @@ impl TableWidget {
         self.scroll_state = self.scroll_state.position(i * ITEM_HEIGHT);
     }
 
-    fn constraint_len_calculator(items: &[Data]) -> (u16, u16, u16, u16) {
+    fn constraint_len_calculator(items: &[&Data]) -> Vec<u16> {
         let total_width: u16 = items
             .iter()
             .map(|item| {
@@ -139,36 +190,11 @@ impl TableWidget {
             * 100
             / total_width;
 
-        (
+        vec![
             name_percent,
             status_percent,
             destination_percent,
             time_percent,
-        )
-    }
-}
-#[derive(Debug)]
-pub struct TableColors {
-    pub buffer_bg: Color,
-    pub header_bg: Color,
-    pub header_fg: Color,
-    pub row_fg: Color,
-    pub selected_style_fg: Color,
-    pub normal_row_color: Color,
-    pub alt_row_color: Color,
-}
-
-impl TableColors {
-    pub const fn new(color: &tailwind::Palette) -> Self {
-        Self {
-            //c700
-            buffer_bg: tailwind::SLATE.c900,
-            header_bg: color.c900,
-            header_fg: tailwind::SLATE.c200,
-            row_fg: tailwind::SLATE.c200,
-            selected_style_fg: color.c400,
-            normal_row_color: tailwind::SLATE.c950,
-            alt_row_color: tailwind::SLATE.c900,
-        }
+        ]
     }
 }

@@ -8,7 +8,7 @@ pub mod dashboard_view {
         Frame,
     };
 
-    use crate::widget::TableWidget;
+    use crate::widget::{Item, TableWidget};
 
     #[derive(Debug)]
     pub struct Data {
@@ -94,31 +94,38 @@ pub mod dashboard_view {
             .style(header_style)
             .height(1);
 
-        let rows = table.items.iter().enumerate().map(|(i, data)| {
-            let color = match i % 2 {
-                0 => table.colors.normal_row_color,
-                _ => table.colors.alt_row_color,
-            };
+        let rows = table.items.iter().enumerate().filter_map(|(i, data)| {
+            if let Item::Data(data) = data {
+                let color = match i % 2 {
+                    0 => table.colors.normal_row_color,
+                    _ => table.colors.alt_row_color,
+                };
 
-            let cells = vec![
-                Cell::from(data.name.clone()),
-                Cell::from(data.status.clone()),
-                Cell::from(data.destination.clone()),
-                Cell::from(data.time.clone()),
-            ];
-            Row::new(cells)
-                .style(Style::new().fg(table.colors.row_fg).bg(color))
-                .height(1)
+                let cells = vec![
+                    Cell::from(data.name.clone()),
+                    Cell::from(data.status.clone()),
+                    Cell::from(data.destination.clone()),
+                    Cell::from(data.time.clone()),
+                ];
+
+                Some(
+                    Row::new(cells)
+                        .style(Style::new().fg(table.colors.row_fg).bg(color))
+                        .height(1),
+                )
+            } else {
+                None
+            }
         });
 
         let bar = " █ ";
         let t = Table::new(
             rows,
             [
-                Constraint::Length(table.longest_item_lens.0),
-                Constraint::Min(table.longest_item_lens.1),
-                Constraint::Min(table.longest_item_lens.2),
-                Constraint::Min(table.longest_item_lens.3),
+                Constraint::Length(table.longest_item_lens[0]),
+                Constraint::Min(table.longest_item_lens[1]),
+                Constraint::Min(table.longest_item_lens[2]),
+                Constraint::Min(table.longest_item_lens[3]),
             ],
         )
         .header(header)

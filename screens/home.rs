@@ -19,7 +19,8 @@ pub mod homepage {
     use crate::help::help_popup::HelpPopup;
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
     use crate::protocol::protocol_popup::ConnectionPopup;
-    use crate::widget::TableWidget;
+    use crate::sessions::{draw_session_table_ui, Device};
+    use crate::widget::{TableWidget, TableWidgetItemManager};
 
     pub struct Home {
         running: bool,
@@ -238,6 +239,23 @@ pub mod homepage {
             let mut input_box = InputBox::default();
             let mut help = HelpPopup::new();
             let mut table = TableWidget::new();
+            let mut session_table = Device::new_empty();
+            session_table.add_item(
+                Device {
+                    name: "Urizen".to_string(),
+                    last_connection: crate::sessions::Connection {
+                        total: "Just now".to_string(),
+                        format_date: "Just now".to_string(),
+                    },
+                    last_transfer: crate::sessions::Transfer {
+                        status: "Not Sent".to_string(),
+                        size: "Not Sent".to_string(),
+                        name: "File 1".to_string(),
+                    },
+                    ip: "".to_string(),
+                },
+                &mut table,
+            );
             let status = Line::from(Span::styled(
                 "Not Sent",
                 Style::default().fg(ratatui::style::Color::Red),
@@ -290,7 +308,7 @@ pub mod homepage {
                 match check_config() {
                     Ok(_) => {
                         term.lock().unwrap().draw(|f| {
-                            table_ui(f, &mut table);
+                            draw_session_table_ui(f, &mut table);
                             if table.help {
                                 help.draw_dashboard_help(f);
                             }
