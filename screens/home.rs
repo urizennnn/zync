@@ -271,6 +271,7 @@ pub mod homepage {
                 },
                 &mut table,
             );
+            //FIX: find why is this is removed the Computer table row/column gets removed
             let status = Line::from(Span::styled(
                 "Not Sent",
                 Style::default().fg(ratatui::style::Color::Red),
