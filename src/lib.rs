@@ -30,3 +30,6 @@ pub mod sessions;
 
 #[path = "../lib/core/widgets.rs"]
 pub mod widget;
+
+#[path = "../lib/core/event.rs"]
+pub mod event;

@@ -256,6 +256,22 @@ pub mod homepage {
                 },
                 &mut table,
             );
+            session_table.add_item(
+                Device {
+                    name: "Urizen".to_string(),
+                    last_connection: crate::sessions::Connection {
+                        total: "Just now".to_string(),
+                        format_date: "Just now".to_string(),
+                    },
+                    last_transfer: crate::sessions::Transfer {
+                        status: "Not Sent".to_string(),
+                        size: "Not Sent".to_string(),
+                        name: "File 1".to_string(),
+                    },
+                    ip: "".to_string(),
+                },
+                &mut table,
+            );
             let status = Line::from(Span::styled(
                 "Not Sent",
                 Style::default().fg(ratatui::style::Color::Red),

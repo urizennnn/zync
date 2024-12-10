@@ -8,7 +8,11 @@ use ratatui::{
     widgets::{ScrollbarState, TableState},
 };
 
-use crate::{dashboard::dashboard_view::Data, sessions::Device};
+use crate::{
+    dashboard::dashboard_view::Data,
+    event::NewTrait,
+    sessions::{Device, SESSION_EVENT},
+};
 
 const ITEM_HEIGHT: usize = 2;
 #[derive(Debug)]
@@ -17,6 +21,10 @@ pub enum Item {
     Device(Device),
 }
 
+pub enum SelectedItem<'a> {
+    Data(&'a Data),
+    Device(&'a Device),
+}
 #[derive(Debug)]
 pub struct TableWidget {
     pub state: TableState,
@@ -75,7 +83,7 @@ impl TableWidget {
         }
     }
 
-    pub fn handle_events(&mut self) -> io::Result<()> {
+    pub async fn handle_events(&mut self) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             match key.code {
                 KeyCode::Up => {
@@ -90,6 +98,16 @@ impl TableWidget {
         Ok(())
     }
 
+    pub fn enter(&mut self) -> Option<SelectedItem> {
+        if let Some(i) = self.state.selected() {
+            match &self.items[i] {
+                Item::Data(data) => Some(SelectedItem::Data(data)),
+                Item::Device(device) => Some(SelectedItem::Device(device)),
+            }
+        } else {
+            None
+        }
+    }
     pub fn add_item(
         &mut self,
         name: String,
@@ -118,7 +136,6 @@ impl TableWidget {
 
         self.longest_item_lens = Self::constraint_len_calculator(&data_items);
     }
-
     pub fn next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
