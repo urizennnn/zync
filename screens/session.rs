@@ -1,6 +1,6 @@
 use crate::{
     event::{AsyncEvent, NewTrait},
-    widget::{Item, SelectedItem, TableWidget, TableWidgetItemManager},
+    widget::{Item, TableWidget, TableWidgetItemManager},
 };
 use once_cell::sync::Lazy;
 use ratatui::{
@@ -21,7 +21,7 @@ pub struct Device {
 }
 
 pub static SESSION_EVENT: Lazy<Mutex<AsyncEvent<usize>>> =
-    Lazy::new(|| Mutex::new(AsyncEvent::new(32)));
+    Lazy::new(|| Mutex::new(AsyncEvent::new()));
 
 impl Device {
     pub fn new_empty() -> Self {
@@ -85,43 +85,39 @@ impl TableWidgetItemManager for Device {
     }
 }
 
-// TODO: make a way so that when the arrow gets moved to a new element it gets drawn on the other
-// screen statefully
-
 pub fn session_details_ui(table: &mut TableWidget) -> Paragraph<'static> {
-    if let Some(selected) = table.state.selected() {
-        if let Item::Device(device) = &table.items[selected] {
-            let details = vec![
-                Line::from(vec!["Name: ".into(), device.name.clone().yellow()]),
-                Line::from(vec!["IP Address: ".into(), device.ip.clone().green()]),
-                Line::from(""),
-                Line::from(vec![
-                    "Last Transfer: ".into(),
-                    device.last_transfer.name.clone().blue(),
-                    " (".into(),
-                    device.last_transfer.size.clone().white(),
-                    ")".into(),
-                ]),
-                Line::from(vec![
-                    "Status: ".into(),
-                    device.last_transfer.status.clone().cyan(),
-                ]),
-                Line::from(""),
-                Line::from(vec!["Connection History:".bold()]),
-                Line::from(vec![
-                    "  Total: ".into(),
-                    device.last_connection.total.clone().white(),
-                ]),
-                Line::from(vec![
-                    "  First: ".into(),
-                    device.last_connection.format_date.clone().white(),
-                ]),
-            ];
+    let item_index = table.state.selected().unwrap_or(0);
+    if let Some(Item::Device(device)) = table.items.get(item_index) {
+        let details = vec![
+            Line::from(vec!["Name: ".into(), device.name.clone().yellow()]),
+            Line::from(vec!["IP Address: ".into(), device.ip.clone().green()]),
+            Line::from(""),
+            Line::from(vec![
+                "Last Transfer: ".into(),
+                device.last_transfer.name.clone().blue(),
+                " (".into(),
+                device.last_transfer.size.clone().white(),
+                ")".into(),
+            ]),
+            Line::from(vec![
+                "Status: ".into(),
+                device.last_transfer.status.clone().cyan(),
+            ]),
+            Line::from(""),
+            Line::from(vec!["Connection History:".bold()]),
+            Line::from(vec![
+                "  Total: ".into(),
+                device.last_connection.total.clone().white(),
+            ]),
+            Line::from(vec![
+                "  First: ".into(),
+                device.last_connection.format_date.clone().white(),
+            ]),
+        ];
 
-            return Paragraph::new(Text::from(details))
-                .block(Block::default().borders(Borders::ALL).title("Details"))
-                .alignment(Alignment::Left);
-        }
+        return Paragraph::new(Text::from(details))
+            .block(Block::default().borders(Borders::ALL).title("Details"))
+            .alignment(Alignment::Left);
     }
 
     Paragraph::new(Line::from("No details available"))
@@ -189,7 +185,7 @@ pub fn session_table_ui(table: &mut TableWidget) -> ratatui::widgets::Table<'_> 
     t
 }
 
-pub fn draw_session_table_ui(f: &mut Frame, table: &mut TableWidget) {
+pub fn draw_session_table_ui(f: &mut Frame<'_>, table: &mut TableWidget) {
     let vertical_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(

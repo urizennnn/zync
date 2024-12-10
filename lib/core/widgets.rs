@@ -8,11 +8,8 @@ use ratatui::{
     widgets::{ScrollbarState, TableState},
 };
 
-use crate::{
-    dashboard::dashboard_view::Data,
-    event::NewTrait,
-    sessions::{Device, SESSION_EVENT},
-};
+use crate::dashboard::dashboard_view::Data;
+use crate::sessions::Device;
 
 const ITEM_HEIGHT: usize = 2;
 #[derive(Debug)]
@@ -21,6 +18,7 @@ pub enum Item {
     Device(Device),
 }
 
+#[derive(Debug)]
 pub enum SelectedItem<'a> {
     Data(&'a Data),
     Device(&'a Device),

@@ -1,4 +1,5 @@
 pub mod core_lib {
+    use std::any::type_name;
     use std::{collections::BTreeMap, error::Error, fs};
 
     use nanoid::nanoid;
@@ -70,5 +71,11 @@ pub mod core_lib {
             .take(len)
             .map(char::from)
             .collect()
+    }
+    pub fn get_type<T>(_: &T)
+    where
+        T: std::fmt::Debug,
+    {
+        log::info!("Type: {}", type_name::<T>());
     }
 }

@@ -14,7 +14,6 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::{check_config, create_config};
-    use crate::dashboard::dashboard_view::table_ui;
     use crate::error::error_widget::ErrorWidget;
     use crate::help::help_popup::HelpPopup;
     use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
