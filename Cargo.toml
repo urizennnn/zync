@@ -1,6 +1,11 @@
 [package]
 name = "zync"
-version = "0.1.0"
+description = "An advanced CLI tool for transferring files through your terminal."
+authors=["urizennnn"]
+license="MIT"
+readme ="README.md"
+version = "0.0.1-alpha"
+keywords = ["cli", "file-transfer", "zync"]
 edition = "2021"
 
 [lib]
