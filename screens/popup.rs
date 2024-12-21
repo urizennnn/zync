@@ -125,26 +125,26 @@ impl InputBox {
             removed_char: vec![],
         }
     }
-   fn return_cloned_char(&mut self) -> Vec<char> {
-    let char_vec=    self.removed_char.clone(); 
-       let mut new_vec:Vec<char> = vec![];
+    fn return_cloned_char(&mut self) -> Vec<char> {
+        let char_vec = self.removed_char.clone();
+        let mut new_vec: Vec<char> = vec![];
         for char in char_vec.iter() {
-                  new_vec.push(*char);
-         }
-            new_vec
-      }
-
+            new_vec.push(*char);
+        }
+        new_vec
+    }
 
     pub fn move_cursor_left(&mut self) {
         let cursor_moved_left = self.character_index.saturating_sub(1);
         self.character_index = self.clamp_cursor(cursor_moved_left);
-        
+
         if self.character_index == 0 {
             let chars = self.return_cloned_char();
-            let mut flag = true;  // use flag as a toggle control
-            
+            let mut flag = true; // use flag as a toggle control
+
             for (i, &char) in chars.iter().rev().enumerate() {
-                if i == chars.len() - 1 { // toggle `flag` when last char is reached
+                if i == chars.len() - 1 {
+                    // toggle `flag` when last char is reached
                     flag = false;
                 }
                 if flag {
@@ -154,18 +154,16 @@ impl InputBox {
         }
     }
 
-
     pub fn move_cursor_right(&mut self) {
         let cursor_moved_right = self.character_index.saturating_add(1);
         self.character_index = self.clamp_cursor(cursor_moved_right);
     }
 
-
     pub fn enter_char(&mut self, new_char: char) {
         let index = self.byte_index();
         self.input.insert(index, new_char);
         if self.character_index as u16 == 65 {
-          let char =  self.input.remove(0); 
+            let char = self.input.remove(0);
             self.removed_char.push(char);
         }
         self.move_cursor_right();
@@ -218,19 +216,24 @@ impl InputBox {
         Ok(input_msg)
     }
 
-    pub fn draw_in_popup(&self, frame: &mut Frame, area: Rect) {
+    pub fn draw_in_popup(&self, frame: &mut Frame, mut area: Rect) {
         let input_mode = if unsafe { FLAG } {
             InputMode::Editing
         } else {
             InputMode::Normal
         };
+        area.height += 1;
 
         let input = Paragraph::new(self.input.as_str())
             .style(match input_mode {
                 InputMode::Normal => Style::default(),
                 InputMode::Editing => Style::default().fg(Color::Yellow),
             })
-            .block(Block::default().borders(ratatui::widgets::Borders::ALL).title("Input"));
+            .block(
+                Block::default()
+                    .borders(ratatui::widgets::Borders::ALL)
+                    .title("Input"),
+            );
         frame.render_widget(input, area);
 
         if input_mode == InputMode::Editing {
