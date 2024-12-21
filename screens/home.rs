@@ -271,35 +271,34 @@ pub mod homepage {
                 },
                 &mut table,
             );
-            //FIX: find why is this is removed the Computer table row/column gets removed
-            let status = Line::from(Span::styled(
-                "Not Sent",
-                Style::default().fg(ratatui::style::Color::Red),
-            ));
-            table.add_item(
-                "File 1".to_string(),
-                status,
-                "Urizen".to_string(),
-                "Just now".to_string(),
-            );
-            table.add_item(
-                "File 2".to_string(),
-                Line::from(Span::styled(
-                    "Sending",
-                    Style::default().fg(ratatui::style::Color::Yellow),
-                )),
-                "Urizen".to_string(),
-                "10 mins ago".to_string(),
-            );
-            table.add_item(
-                "File 1".to_string(),
-                Line::from(Span::styled(
-                    "Sent",
-                    Style::default().fg(ratatui::style::Color::Green),
-                )),
-                "Urizen".to_string(),
-                "Just now".to_string(),
-            );
+            // let status = Line::from(Span::styled(
+            //     "Not Sent",
+            //     Style::default().fg(ratatui::style::Color::Red),
+            // ));
+            // table.add_item(
+            //     "File 1".to_string(),
+            //     status,
+            //     "Urizen".to_string(),
+            //     "Just now".to_string(),
+            // );
+            // table.add_item(
+            //     "File 2".to_string(),
+            //     Line::from(Span::styled(
+            //         "Sending",
+            //         Style::default().fg(ratatui::style::Color::Yellow),
+            //     )),
+            //     "Urizen".to_string(),
+            //     "10 mins ago".to_string(),
+            // );
+            // table.add_item(
+            //     "File 1".to_string(),
+            //     Line::from(Span::styled(
+            //         "Sent",
+            //         Style::default().fg(ratatui::style::Color::Green),
+            //     )),
+            //     "Urizen".to_string(),
+            //     "Just now".to_string(),
+            // );
             let mut connection = ConnectionPopup::new();
             let mut api_popup = ApiPopup::new();
             let mut error = ErrorWidget::new();
