@@ -11,6 +11,7 @@ use ratatui::{
     Frame,
 };
 use tokio::sync::Mutex;
+use unicode_width::UnicodeWidthStr;
 
 #[derive(Debug)]
 pub struct Device {
@@ -59,29 +60,56 @@ impl TableWidgetItemManager for Device {
 
     fn add_item(&mut self, item: Self::Item, table: &mut TableWidget) {
         table.items.push(crate::widget::Item::Device(item));
-    }
-    fn constraint_len_calculator(items: &[Self::Item]) -> Vec<u16> {
-        let mut longest_item_lens = vec![0; 4];
-        for item in items {
-            let name_len = item.name.len() as u16;
-            let ip_len = item.ip.len() as u16;
-            let last_transfer_len = item.last_transfer.name.len() as u16;
-            let last_connection_len = item.last_connection.total.len() as u16;
+        let device_items: Vec<&Self::Item> = table
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let Item::Device(device) = item {
+                    Some(device)
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-            if name_len > longest_item_lens[0] {
-                longest_item_lens[0] = name_len;
-            }
-            if ip_len > longest_item_lens[1] {
-                longest_item_lens[1] = ip_len;
-            }
-            if last_transfer_len > longest_item_lens[2] {
-                longest_item_lens[2] = last_transfer_len;
-            }
-            if last_connection_len > longest_item_lens[3] {
-                longest_item_lens[3] = last_connection_len;
-            }
-        }
-        longest_item_lens
+        table.longest_item_lens = Self::constraint_len_calculator(&device_items);
+    }
+    fn constraint_len_calculator(items: &[&Self::Item]) -> Vec<u16> {
+        let width: u16 = items
+            .iter()
+            .map(|item| {
+                item.name.width() as u16
+                    + item.last_connection.format_date.width() as u16
+                    + item.last_transfer.status.width() as u16
+            })
+            .max()
+            .unwrap_or(0);
+
+        let name_percent = items
+            .iter()
+            .map(|item| item.name.width() as u16)
+            .max()
+            .unwrap_or(0)
+            * 100
+            / width;
+
+        let date_percent = items
+            .iter()
+            .map(|item| item.last_connection.format_date.width() as u16)
+            .max()
+            .unwrap_or(0)
+            * 100
+            / width;
+
+        let status_percent = items
+            .iter()
+            .map(|item| item.last_transfer.status.width() as u16)
+            .max()
+            .unwrap_or(0)
+            * 100
+            / width;
+
+        vec![name_percent, date_percent, status_percent]
     }
 }
 

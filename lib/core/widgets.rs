@@ -64,7 +64,7 @@ pub trait TableWidgetItemManager {
     type Item;
 
     fn add_item(&mut self, item: Self::Item, table: &mut TableWidget);
-    fn constraint_len_calculator(items: &[Self::Item]) -> Vec<u16>;
+    fn constraint_len_calculator(items: &[&Self::Item]) -> Vec<u16>;
 }
 
 impl TableWidget {
