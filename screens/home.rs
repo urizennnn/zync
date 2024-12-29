@@ -69,11 +69,11 @@ pub mod homepage {
                         handle_left_key(self, input_box)
                     }
                     KeyCode::Enter => {
-                        if table.connection {
-                            connection.return_selected(table);
-                            return Ok(());
-                        }
-                        handle_enter_key(self, input_box, error)
+                        // if table.connection {
+                        //     connection.return_selected(table);
+                        //     return Ok(());
+                        // }
+                        handle_enter_key(self, input_box, error, table)
                     }
                     KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
                     KeyCode::Char(c) => handle_char_key(self, c, input_box),

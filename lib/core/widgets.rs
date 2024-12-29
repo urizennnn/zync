@@ -32,6 +32,7 @@ pub struct TableWidget {
     pub colors: TableColors,
     pub help: bool,
     pub connection: bool,
+    pub active: bool,
 }
 
 #[derive(Debug)]
@@ -71,6 +72,7 @@ impl TableWidget {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
+            active: false,
             connection: false,
             state: TableState::default(),
             items: Vec::new(),

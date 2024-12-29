@@ -1,3 +1,5 @@
+use libc::printf;
+
 use crate::{
     core::core_lib::create_config,
     error::error_widget::ErrorWidget,
@@ -92,54 +94,64 @@ pub fn handle_left_key(home: &mut Home, input_box: &mut InputBox) {
     }
 }
 
-pub fn handle_enter_key(home: &mut Home, input_box: &mut InputBox, error: &mut ErrorWidget) {
-    if home.show_popup {
-        home.popup_tx
-            .send((home.selected_button as u16, Some(true)))
-            .unwrap();
-        home.show_popup = false;
-    } else {
-        match input_box.input_mode == InputMode::Editing {
-            true => {
-                let api = input_box.submit_message();
-                match api {
-                    Ok(api) => {
-                        create_config(&api).unwrap();
-                        home.show_api_popup = false;
-                    }
-                    Err(err) => {
-                        home.show_api_popup = false;
-                        error.set_val(
-                            err.to_string(),
-                            &mut crate::error::error_widget::ErrorType::Warning,
-                            "Ok".to_string(),
-                        );
-                        home.error = true;
-                    }
+pub fn handle_enter_key(
+    home: &mut Home,
+    input_box: &mut InputBox,
+    error: &mut ErrorWidget,
+    table: &mut TableWidget,
+) {
+    match (home.show_popup, table.active) {
+        (true, _) => {
+            home.popup_tx
+                .send((home.selected_button as u16, Some(true)))
+                .unwrap();
+            home.show_popup = false;
+        }
+        // TODO: look for a way to sync this to the recent transfers screen
+        (_, true) => panic!("{:?}", table.enter()),
+        _ => match_input_state(home, input_box, error),
+    }
+}
+fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut ErrorWidget) {
+    match input_box.input_mode == InputMode::Editing {
+        true => {
+            let api = input_box.submit_message();
+            match api {
+                Ok(api) => {
+                    create_config(&api).unwrap();
+                    home.show_api_popup = false;
+                }
+                Err(err) => {
+                    home.show_api_popup = false;
+                    error.set_val(
+                        err.to_string(),
+                        &mut crate::error::error_widget::ErrorType::Warning,
+                        "Ok".to_string(),
+                    );
+                    home.error = true;
                 }
             }
-            false => {
-                let output = input_box.submit_message();
-                match output {
-                    Ok(key) => {
-                        create_config(&key).unwrap();
-                        home.show_api_popup = false;
-                    }
-                    Err(err) => {
-                        home.show_api_popup = false;
-                        error.set_val(
-                            err.to_string(),
-                            &mut crate::error::error_widget::ErrorType::Warning,
-                            "Ok".to_string(),
-                        );
-                        home.error = true;
-                    }
+        }
+        false => {
+            let output = input_box.submit_message();
+            match output {
+                Ok(key) => {
+                    create_config(&key).unwrap();
+                    home.show_api_popup = false;
+                }
+                Err(err) => {
+                    home.show_api_popup = false;
+                    error.set_val(
+                        err.to_string(),
+                        &mut crate::error::error_widget::ErrorType::Warning,
+                        "Ok".to_string(),
+                    );
+                    home.error = true;
                 }
             }
         }
     }
 }
-
 pub fn handle_char_key(_: &mut Home, c: char, input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.enter_char(c);

@@ -214,6 +214,7 @@ pub fn session_table_ui(table: &mut TableWidget) -> ratatui::widgets::Table<'_> 
 }
 
 pub fn draw_session_table_ui(f: &mut Frame<'_>, table: &mut TableWidget) {
+    table.active = true;
     let vertical_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
