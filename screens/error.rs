@@ -7,7 +7,7 @@ pub mod error_widget {
         Frame,
     };
 
-    use crate::popup::calculate_popup_area;
+    use crate::calculate::calculate_popup_area;
 
     pub struct ErrorWidget {
         pub message: String,

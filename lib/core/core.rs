@@ -5,6 +5,8 @@ pub mod core_lib {
     use nanoid::nanoid;
     use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
+    use crate::app::app_config_variables::{App, Files};
+
     pub fn check_config() -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Checking config");
 
@@ -44,7 +46,7 @@ pub mod core_lib {
             key: key.to_string(),
             secret: client_secret,
             client_id: client_id.to_string(),
-            summary: File {
+            summary: Files {
                 data: BTreeMap::new(),
             },
         };

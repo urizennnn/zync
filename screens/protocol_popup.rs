@@ -9,7 +9,8 @@ pub mod protocol_popup {
     use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
     use crate::{
-        popup::{calculate_popup_area, InputBox},
+        calculate::{calculate_popup_area, centered_rect},
+        popup::InputBox,
         widget::TableWidget,
     };
 
@@ -128,25 +129,5 @@ pub mod protocol_popup {
             f.render_widget(Clear, f.area());
             input_widget.draw_in_popup(f, area);
         }
-    }
-
-    fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-        let popup_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ])
-            .split(r);
-
-        Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ])
-            .split(popup_layout[1])[1]
     }
 }

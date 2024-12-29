@@ -1,5 +1,5 @@
 #[path = "./app.rs"]
-pub mod app;
+pub mod init;
 
 #[path = "../screens/home.rs"]
 pub mod home;
@@ -39,3 +39,6 @@ pub mod event;
 
 #[path = "../lib/core/events/input.rs"]
 pub mod input;
+
+#[path ="../lib/core/utils/calculate.rs"]
+pub mod calculate;

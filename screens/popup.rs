@@ -1,3 +1,4 @@
+use crate::calculate::calculate_popup_area;
 use crate::home::homepage::Home;
 use derive_setters::Setters;
 use ratatui::layout::{Constraint, Layout, Position};
@@ -286,20 +287,6 @@ impl Default for InputBox {
     }
 }
 
-pub fn calculate_popup_area(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
-    let popup_width = area.width * percent_x / 100;
-    let popup_height = area.height * percent_y / 100;
-
-    let popup_x = (area.width - popup_width) / 2;
-    let popup_y = (area.height - popup_height) / 2;
-
-    Rect::new(
-        area.x + popup_x,
-        area.y + popup_y,
-        popup_width,
-        popup_height,
-    )
-}
 impl Home {
     pub fn render_notification(&mut self, frame: &mut Frame) {
         self.popup_dialog = ConfirmDialogState::default()

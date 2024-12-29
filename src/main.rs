@@ -1,7 +1,6 @@
-use app::init_app;
 use std::error::Error;
 
-mod app;
+use zync::init::init_app;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
