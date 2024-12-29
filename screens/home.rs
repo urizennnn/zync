@@ -13,16 +13,21 @@ pub mod homepage {
     use tui_big_text::{BigText, BigTextBuilder};
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
-    use crate::core::core_lib::{check_config, create_config};
+    use crate::core::core_lib::check_config;
     use crate::error::error_widget::ErrorWidget;
     use crate::help::help_popup::HelpPopup;
-    use crate::popup::{ApiPopup, InputBox, InputMode, FLAG};
+    use crate::input::{
+        handle_backspace_key, handle_char_key, handle_down_arrow, handle_enter_key, handle_esc_key,
+        handle_help_key, handle_left_key, handle_n_key, handle_q_key, handle_right_key,
+        handle_up_key,
+    };
+    use crate::popup::{ApiPopup, InputBox};
     use crate::protocol::protocol_popup::ConnectionPopup;
     use crate::sessions::{draw_session_table_ui, Device};
     use crate::widget::{TableWidget, TableWidgetItemManager};
 
     pub struct Home {
-        running: bool,
+        pub running: bool,
         pub show_popup: bool,
         pub render_url_popup: bool,
         pub show_api_popup: bool,
@@ -44,194 +49,39 @@ pub mod homepage {
         ) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char('q') => self.handle_q_key(input_box, table),
-                    KeyCode::Char('n') => self.handle_n_key('n', input_box, table),
-                    KeyCode::Down => self.handle_down_arrow(table),
-                    KeyCode::Up => self.handle_up_key(table),
-                    KeyCode::Esc => self.handle_esc_key(input_box),
+                    KeyCode::Char('q') => handle_q_key(self, input_box, table),
+                    KeyCode::Char('n') => handle_n_key(self, 'n', input_box, table),
+                    KeyCode::Down => handle_down_arrow(self, table),
+                    KeyCode::Up => handle_up_key(self, table),
+                    KeyCode::Esc => handle_esc_key(self, input_box),
                     KeyCode::Right => {
                         if table.connection {
                             connection.selected = connection.selected.next_val();
                             return Ok(());
                         }
-                        self.handle_right_key(input_box)
+                        handle_right_key(self, input_box)
                     }
                     KeyCode::Left => {
                         if table.connection {
                             connection.selected = connection.selected.previous_val();
                             return Ok(());
                         }
-                        self.handle_left_key(input_box)
+                        handle_left_key(self, input_box)
                     }
                     KeyCode::Enter => {
                         if table.connection {
                             connection.return_selected(table);
                             return Ok(());
                         }
-                        self.handle_enter_key(input_box, error)
+                        handle_enter_key(self, input_box, error)
                     }
-                    KeyCode::Char('?') => self.handle_help_key(table, '?', input_box),
-                    KeyCode::Char(c) => self.handle_char_key(c, input_box),
-                    KeyCode::Backspace => self.handle_backspace_key(input_box),
+                    KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
+                    KeyCode::Char(c) => handle_char_key(self, c, input_box),
+                    KeyCode::Backspace => handle_backspace_key(self, input_box),
                     _ => {}
                 }
             }
             Ok(())
-        }
-        fn handle_help_key(
-            &mut self,
-            table: &mut TableWidget,
-            key: char,
-            input_box: &mut InputBox,
-        ) {
-            if !self.show_api_popup {
-                table.help = !table.help;
-            }
-            self.handle_char_key(key, input_box);
-        }
-
-        fn handle_q_key(&mut self, input_box: &mut InputBox, table: &mut TableWidget) {
-            match (
-                self.show_api_popup,
-                self.show_popup,
-                self.render_url_popup,
-                table.help,
-                table.connection,
-            ) {
-                (true, _, _, _, _) => self.handle_char_key('q', input_box),
-                (_, true, _, _, _) => {
-                    self.popup_tx
-                        .send((self.selected_button as u16, Some(false)))
-                        .unwrap();
-                    self.show_popup = false;
-                }
-                (_, _, true, _, _) => {}
-                (_, _, _, true, _) => {}
-                (_, _, _, _, true) => {}
-                _ => self.running = false,
-            }
-        }
-
-        fn handle_n_key(&mut self, c: char, input_box: &mut InputBox, table: &mut TableWidget) {
-            if self.show_api_popup {
-                self.handle_char_key(c, input_box);
-            } else if !self.show_popup {
-                self.show_popup = true;
-            } else {
-                table.connection = !table.connection;
-            }
-        }
-
-        fn handle_esc_key(&mut self, input_box: &mut InputBox) {
-            if self.show_popup {
-                self.popup_tx
-                    .send((self.selected_button as u16, Some(false)))
-                    .unwrap();
-                self.show_popup = false;
-            } else if input_box.input_mode == InputMode::Editing {
-                input_box.input_mode = InputMode::Normal;
-                unsafe { FLAG = false };
-            } else if self.show_api_popup {
-                self.show_api_popup = false;
-            } else if self.render_url_popup {
-                self.render_url_popup = false;
-            } else if self.error {
-                self.error = false;
-            }
-        }
-
-        fn handle_right_key(&mut self, input_box: &mut InputBox) {
-            if self.show_popup {
-                self.selected_button = (self.selected_button + 1) % 2;
-                self.popup_tx
-                    .send((self.selected_button as u16, None))
-                    .unwrap();
-            } else if input_box.input_mode == InputMode::Editing {
-                input_box.move_cursor_right();
-            }
-        }
-
-        fn handle_left_key(&mut self, input_box: &mut InputBox) {
-            if self.show_popup {
-                self.selected_button = (self.selected_button + 1) % 2;
-                self.popup_tx
-                    .send((self.selected_button as u16, None))
-                    .unwrap();
-            } else if input_box.input_mode == InputMode::Editing {
-                input_box.move_cursor_left();
-            }
-        }
-        fn handle_enter_key(&mut self, input_box: &mut InputBox, error: &mut ErrorWidget) {
-            if self.show_popup {
-                self.popup_tx
-                    .send((self.selected_button as u16, Some(true)))
-                    .unwrap();
-                self.show_popup = false;
-            } else {
-                match input_box.input_mode == InputMode::Editing {
-                    true => {
-                        let api = input_box.submit_message();
-                        match api {
-                            Ok(api) => {
-                                create_config(&api).unwrap();
-                                self.show_api_popup = false;
-                            }
-                            Err(err) => {
-                                self.show_api_popup = false;
-                                error.set_val(
-                                    err.to_string(),
-                                    &mut crate::error::error_widget::ErrorType::Warning,
-                                    "Ok".to_string(),
-                                );
-                                self.error = true;
-                            }
-                        }
-                    }
-                    false => {
-                        let output = input_box.submit_message();
-                        match output {
-                            Ok(key) => {
-                                create_config(&key).unwrap();
-                                self.show_api_popup = false;
-                            }
-                            Err(err) => {
-                                self.show_api_popup = false;
-                                error.set_val(
-                                    err.to_string(),
-                                    &mut crate::error::error_widget::ErrorType::Warning,
-                                    "Ok".to_string(),
-                                );
-                                self.error = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        fn handle_char_key(&mut self, c: char, input_box: &mut InputBox) {
-            if input_box.input_mode == InputMode::Editing {
-                input_box.enter_char(c);
-            } else if c == 'e' {
-                input_box.input_mode = InputMode::Editing;
-                unsafe { FLAG = true };
-            }
-        }
-        fn handle_up_key(&mut self, table: &mut TableWidget) {
-            if !table.help && !table.connection {
-                table.previous();
-            }
-        }
-        fn handle_down_arrow(&mut self, table: &mut TableWidget) {
-            if !table.help && !table.connection {
-                table.next();
-            }
-        }
-
-        fn handle_backspace_key(&mut self, input_box: &mut InputBox) {
-            if input_box.input_mode == InputMode::Editing {
-                input_box.delete_char();
-            }
         }
 
         pub fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {

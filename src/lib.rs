@@ -1,3 +1,6 @@
+#[path = "./app.rs"]
+pub mod app;
+
 #[path = "../screens/home.rs"]
 pub mod home;
 
@@ -33,3 +36,6 @@ pub mod widget;
 
 #[path = "../lib/core/event.rs"]
 pub mod event;
+
+#[path = "../lib/core/events/input.rs"]
+pub mod input;
