@@ -1,12 +1,12 @@
 pub mod homepage {
     use crossterm::event::{self, Event, KeyCode};
     use ratatui::text::{Line, Span};
+    use ratatui::DefaultTerminal;
     use ratatui::{
         layout::{Constraint, Layout, Rect},
         style::{Modifier, Style},
         widgets::{Block, Borders, Paragraph, Widget},
     };
-    use ratatui::{DefaultTerminal, Frame};
     use std::sync::mpsc::{self};
     use std::sync::{Arc, Mutex};
     use std::{error::Error, io};
@@ -14,6 +14,7 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::check_config;
+    use crate::dashboard::dashboard_view::{table_ui, Data};
     use crate::error::error_widget::ErrorWidget;
     use crate::help::help_popup::HelpPopup;
     use crate::input::{
@@ -24,6 +25,7 @@ pub mod homepage {
     use crate::popup::{ApiPopup, InputBox};
     use crate::protocol::protocol_popup::ConnectionPopup;
     use crate::sessions::{draw_session_table_ui, Device};
+    use crate::state::ScreenState;
     use crate::widget::{TableWidget, TableWidgetItemManager};
 
     pub struct Home {
@@ -34,6 +36,7 @@ pub mod homepage {
         pub show_api_dialog: ConfirmDialogState,
         pub selected_button: usize,
         pub popup_tx: mpsc::Sender<Listener>,
+        pub current_screen: ScreenState,
         pub popup_rx: mpsc::Receiver<Listener>,
         pub popup_dialog: ConfirmDialogState,
         pub error: bool,
@@ -44,7 +47,6 @@ pub mod homepage {
             &mut self,
             input_box: &mut InputBox,
             table: &mut TableWidget,
-            term: &Arc<Mutex<DefaultTerminal>>,
             connection: &mut ConnectionPopup,
             error: &mut ErrorWidget,
         ) -> io::Result<()> {
@@ -74,8 +76,7 @@ pub mod homepage {
                         //     connection.return_selected(table);
                         //     return Ok(());
                         // }
-                        let mut term = term.lock().unwrap();
-                        handle_enter_key(&mut term.get_frame(), self, input_box, error, table)
+                        handle_enter_key(self, input_box, error, table)
                     }
                     KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
                     KeyCode::Char(c) => handle_char_key(self, c, input_box),
@@ -93,22 +94,26 @@ pub mod homepage {
             let mut session_table = Device::new_empty();
             session_table.add_item(
                 Device {
-                    name: "Urizen".to_string(),
-                    last_connection: crate::sessions::Connection {
-                        total: "Just now".to_string(),
-                        format_date: "Just now".to_string(),
-                    },
-                    last_transfer: crate::sessions::Transfer {
-                        status: "Not Sent".to_string(),
-                        size: "Not Sent".to_string(),
-                        name: "File 1".to_string(),
-                    },
-                    ip: "".to_string(),
-                },
-                &mut table,
-            );
-            session_table.add_item(
-                Device {
+                    files: Some(vec![
+                        Data {
+                            name: "File 1".to_string(),
+                            status: Line::from(Span::styled(
+                                "Not Sent",
+                                Style::default().fg(ratatui::style::Color::Red),
+                            )),
+                            destination: "Urizen".to_string(),
+                            time: "Just now".to_string(),
+                        },
+                        Data {
+                            name: "File 2".to_string(),
+                            status: Line::from(Span::styled(
+                                "Sending",
+                                Style::default().fg(ratatui::style::Color::Yellow),
+                            )),
+                            destination: "Urizen".to_string(),
+                            time: "10 mins ago".to_string(),
+                        },
+                    ]),
                     name: "Urizen".to_string(),
                     last_connection: crate::sessions::Connection {
                         total: "Just now".to_string(),
@@ -174,17 +179,23 @@ pub mod homepage {
 
                 match check_config() {
                     Ok(_) => {
-                        term.lock().unwrap().draw(|f| {
-                            draw_session_table_ui(f, &mut table);
-                            if table.help {
-                                help.draw_dashboard_help(f);
+                        term.lock().unwrap().draw(|f| match self.current_screen {
+                            ScreenState::Sessions => {
+                                draw_session_table_ui(f, &mut table, &mut self);
+                                if table.help {
+                                    help.draw_dashboard_help(f);
+                                }
+                                if table.connection {
+                                    connection.render(f);
+                                }
+                                if connection.input_popup {
+                                    connection.draw_input(f);
+                                }
                             }
-                            if table.connection {
-                                connection.render(f);
+                            ScreenState::Transfer => {
+                                table_ui(f, &mut table);
                             }
-                            if connection.input_popup {
-                                connection.draw_input(f);
-                            }
+                            _ => {}
                         })?;
                     }
                     Err(_) => {
@@ -206,13 +217,7 @@ pub mod homepage {
                         })?;
                     }
                 }
-                self.handle_events(
-                    &mut input_box,
-                    &mut table,
-                    &term,
-                    &mut connection,
-                    &mut error,
-                )?;
+                self.handle_events(&mut input_box, &mut table, &mut connection, &mut error)?;
             }
             Ok(())
         }
@@ -273,6 +278,7 @@ pub mod homepage {
         pub fn new() -> Self {
             let (tx, rx) = std::sync::mpsc::channel();
             Self {
+                current_screen: ScreenState::Sessions,
                 error: false,
                 show_api_popup: false,
                 show_api_dialog: ConfirmDialogState::default(),

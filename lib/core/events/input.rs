@@ -1,12 +1,11 @@
-use ratatui::{widgets::Clear, Frame};
-
 use crate::{
     core::core_lib::create_config,
-    dashboard::dashboard_view::table_ui,
+    dashboard::dashboard_view::Data,
     error::error_widget::ErrorWidget,
     home::homepage::Home,
     popup::{InputBox, InputMode},
-    widget::TableWidget,
+    state::ScreenState,
+    widget::{SelectedItem, TableWidget},
 };
 
 use crate::popup::FLAG;
@@ -96,7 +95,6 @@ pub fn handle_left_key(home: &mut Home, input_box: &mut InputBox) {
 }
 
 pub fn handle_enter_key(
-    f: &mut Frame,
     home: &mut Home,
     input_box: &mut InputBox,
     error: &mut ErrorWidget,
@@ -109,10 +107,36 @@ pub fn handle_enter_key(
                 .unwrap();
             home.show_popup = false;
         }
-        // TODO: look for a way to sync this to the recent transfers screen
         (_, true) => {
-            // FIX: This should clear the previous screen
-            table_ui(f, table)
+            let selected = table.enter();
+            let data_item: Option<&Vec<Data>> = if let Some(SelectedItem::Device(device)) = selected
+            {
+                device.files.as_ref()
+            } else {
+                None
+            };
+
+            if let Some(data) = data_item {
+                let cloned_items: Vec<(String, ratatui::prelude::Line, String, String)> = data
+                    .iter()
+                    .map(|d| {
+                        (
+                            d.name.clone(),
+                            d.status.clone(),
+                            d.destination.clone(),
+                            d.time.clone(),
+                        )
+                    })
+                    .collect();
+
+                cloned_items
+                    .into_iter()
+                    .for_each(|(name, status, destination, time)| {
+                        table.add_item(name, status, destination, time);
+                    });
+            }
+
+            home.current_screen = ScreenState::Transfer;
         }
         _ => match_input_state(home, input_box, error),
     }

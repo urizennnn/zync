@@ -1,6 +1,6 @@
 pub mod protocol_popup {
     use ratatui::{
-        layout::{Alignment, Constraint, Direction, Layout, Rect},
+        layout::{Alignment, Constraint, Direction, Layout},
         style::{Color, Style},
         text::{Line, Span},
         widgets::{Block, Borders, Clear, Paragraph, Tabs},

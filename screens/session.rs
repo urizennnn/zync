@@ -1,5 +1,8 @@
 use crate::{
+    dashboard::dashboard_view::Data,
     event::{AsyncEvent, NewTrait},
+    home::homepage::Home,
+    state::ScreenState,
     widget::{Item, TableWidget, TableWidgetItemManager},
 };
 use once_cell::sync::Lazy;
@@ -19,6 +22,7 @@ pub struct Device {
     pub ip: String,
     pub last_transfer: Transfer,
     pub last_connection: Connection,
+    pub files: Option<Vec<Data>>,
 }
 
 pub static SESSION_EVENT: Lazy<Mutex<AsyncEvent<usize>>> =
@@ -27,6 +31,7 @@ pub static SESSION_EVENT: Lazy<Mutex<AsyncEvent<usize>>> =
 impl Device {
     pub fn new_empty() -> Self {
         Self {
+            files: None,
             name: String::new(),
             ip: String::new(),
             last_transfer: Transfer {
@@ -213,7 +218,8 @@ pub fn session_table_ui(table: &mut TableWidget) -> ratatui::widgets::Table<'_> 
     t
 }
 
-pub fn draw_session_table_ui(f: &mut Frame<'_>, table: &mut TableWidget) {
+pub fn draw_session_table_ui(f: &mut Frame<'_>, table: &mut TableWidget, home: &mut Home) {
+    home.current_screen = ScreenState::Sessions;
     table.active = true;
     let vertical_chunks = Layout::default()
         .direction(Direction::Vertical)

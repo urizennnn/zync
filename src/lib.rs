@@ -42,3 +42,6 @@ pub mod input;
 
 #[path ="../lib/core/utils/calculate.rs"]
 pub mod calculate;
+
+#[path = "../lib/core/state/state.rs"]
+pub mod state;

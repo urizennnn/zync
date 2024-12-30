@@ -18,6 +18,14 @@ pub mod dashboard_view {
         pub time: String,
     }
 
+    #[derive(Debug)]
+    pub struct Activity {
+        pub name: String,
+        pub status: Line<'static>,
+        pub destination: String,
+        pub time: String,
+    }
+
     pub fn table_ui(f: &mut Frame, table: &mut TableWidget) {
         f.render_widget(Clear, f.area());
         let vertical_chunks = Layout::default()
@@ -126,11 +134,11 @@ pub mod dashboard_view {
                 Constraint::Length(table.longest_item_lens[0]),
                 Constraint::Min(table.longest_item_lens[1]),
                 Constraint::Min(table.longest_item_lens[2]),
+                Constraint::Min(table.longest_item_lens[3]),
             ],
         )
         .header(header)
         .row_highlight_style(selected_style)
-        // .highlight_style(selected_style)
         .highlight_symbol(Text::from(vec![
             "".into(),
             bar.into(),
