@@ -1,12 +1,12 @@
 pub mod homepage {
     use crossterm::event::{self, Event, KeyCode};
     use ratatui::text::{Line, Span};
-    use ratatui::DefaultTerminal;
     use ratatui::{
         layout::{Constraint, Layout, Rect},
         style::{Modifier, Style},
         widgets::{Block, Borders, Paragraph, Widget},
     };
+    use ratatui::{DefaultTerminal, Frame};
     use std::sync::mpsc::{self};
     use std::sync::{Arc, Mutex};
     use std::{error::Error, io};
@@ -44,6 +44,7 @@ pub mod homepage {
             &mut self,
             input_box: &mut InputBox,
             table: &mut TableWidget,
+            term: &Arc<Mutex<DefaultTerminal>>,
             connection: &mut ConnectionPopup,
             error: &mut ErrorWidget,
         ) -> io::Result<()> {
@@ -73,7 +74,8 @@ pub mod homepage {
                         //     connection.return_selected(table);
                         //     return Ok(());
                         // }
-                        handle_enter_key(self, input_box, error, table)
+                        let mut term = term.lock().unwrap();
+                        handle_enter_key(&mut term.get_frame(), self, input_box, error, table)
                     }
                     KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
                     KeyCode::Char(c) => handle_char_key(self, c, input_box),
@@ -204,8 +206,13 @@ pub mod homepage {
                         })?;
                     }
                 }
-
-                self.handle_events(&mut input_box, &mut table, &mut connection, &mut error)?;
+                self.handle_events(
+                    &mut input_box,
+                    &mut table,
+                    &term,
+                    &mut connection,
+                    &mut error,
+                )?;
             }
             Ok(())
         }

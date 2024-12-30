@@ -1,7 +1,8 @@
-use libc::printf;
+use ratatui::{widgets::Clear, Frame};
 
 use crate::{
     core::core_lib::create_config,
+    dashboard::dashboard_view::table_ui,
     error::error_widget::ErrorWidget,
     home::homepage::Home,
     popup::{InputBox, InputMode},
@@ -95,6 +96,7 @@ pub fn handle_left_key(home: &mut Home, input_box: &mut InputBox) {
 }
 
 pub fn handle_enter_key(
+    f: &mut Frame,
     home: &mut Home,
     input_box: &mut InputBox,
     error: &mut ErrorWidget,
@@ -108,7 +110,10 @@ pub fn handle_enter_key(
             home.show_popup = false;
         }
         // TODO: look for a way to sync this to the recent transfers screen
-        (_, true) => panic!("{:?}", table.enter()),
+        (_, true) => {
+            // FIX: This should clear the previous screen
+            table_ui(f, table)
+        }
         _ => match_input_state(home, input_box, error),
     }
 }

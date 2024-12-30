@@ -4,7 +4,7 @@ pub mod dashboard_view {
         layout::{Alignment, Constraint, Direction, Layout, Rect},
         style::{Color, Modifier, Style, Stylize},
         text::{Line, Text},
-        widgets::{Block, Borders, Cell, Paragraph, Row, Table},
+        widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table},
         Frame,
     };
 
@@ -19,6 +19,7 @@ pub mod dashboard_view {
     }
 
     pub fn table_ui(f: &mut Frame, table: &mut TableWidget) {
+        f.render_widget(Clear, f.area());
         let vertical_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(
@@ -125,7 +126,6 @@ pub mod dashboard_view {
                 Constraint::Length(table.longest_item_lens[0]),
                 Constraint::Min(table.longest_item_lens[1]),
                 Constraint::Min(table.longest_item_lens[2]),
-                Constraint::Min(table.longest_item_lens[3]),
             ],
         )
         .header(header)
