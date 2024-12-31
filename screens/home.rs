@@ -22,6 +22,7 @@ pub mod homepage {
         handle_help_key, handle_left_key, handle_n_key, handle_q_key, handle_right_key,
         handle_up_key,
     };
+    use crate::manager::manage_state;
     use crate::popup::{ApiPopup, InputBox};
     use crate::protocol::protocol_popup::ConnectionPopup;
     use crate::sessions::{draw_session_table_ui, Device};
@@ -151,23 +152,8 @@ pub mod homepage {
 
                 match check_config() {
                     Ok(_) => {
-                        term.lock().unwrap().draw(|f| match self.current_screen {
-                            ScreenState::Sessions => {
-                                draw_session_table_ui(f, &mut table, &mut self);
-                                if table.help {
-                                    help.draw_dashboard_help(f);
-                                }
-                                if table.connection {
-                                    connection.render(f);
-                                }
-                                if connection.input_popup {
-                                    connection.draw_input(f);
-                                }
-                            }
-                            ScreenState::Transfer => {
-                                table_ui(f, &mut table);
-                            }
-                            _ => {}
+                        term.lock().unwrap().draw(|f| {
+                            manage_state(&mut self, &mut table, f, &mut help, &mut connection)
                         })?;
                     }
                     Err(_) => {

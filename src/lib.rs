@@ -40,8 +40,11 @@ pub mod event;
 #[path = "../lib/core/events/input.rs"]
 pub mod input;
 
-#[path ="../lib/core/utils/calculate.rs"]
+#[path = "../lib/core/utils/calculate.rs"]
 pub mod calculate;
 
 #[path = "../lib/core/state/state.rs"]
 pub mod state;
+
+#[path = "../lib/core/state/manager.rs"]
+pub mod manager;
