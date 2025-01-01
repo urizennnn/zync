@@ -19,6 +19,7 @@ pub mod protocol_popup {
     pub enum ConnectionType {
         TCP,
         P2P,
+        WIFI,
     }
 
     #[derive(Debug)]
@@ -38,6 +39,10 @@ pub mod protocol_popup {
             let index: usize = self as usize;
             let next_index = index.saturating_sub(1);
             Self::from_repr(next_index).unwrap_or(self)
+        }
+        pub fn return_selected_type(&self, table: &mut TableWidget) -> ConnectionType {
+            table.connection = !table.connection;
+            panic!("Not implemented {:?}", *self);
         }
     }
     impl ConnectionPopup {
@@ -118,9 +123,7 @@ pub mod protocol_popup {
             self.selected = self.selected.previous_val();
         }
         pub fn return_selected(&self, table: &mut TableWidget) -> ConnectionType {
-            table.connection = !table.connection;
-            let selected: ConnectionType = self.selected;
-            selected
+            self.selected.return_selected_type(table)
         }
 
         pub fn draw_input(&mut self, f: &mut Frame) {

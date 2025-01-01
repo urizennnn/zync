@@ -4,6 +4,7 @@ use crate::{
     error::error_widget::ErrorWidget,
     home::homepage::Home,
     popup::{InputBox, InputMode},
+    protocol::protocol_popup::ConnectionPopup,
     state::ScreenState,
     widget::{SelectedItem, TableWidget},
 };
@@ -51,6 +52,7 @@ pub fn handle_n_key(home: &mut Home, c: char, input_box: &mut InputBox, table: &
         home.show_popup = true;
     } else {
         table.connection = !table.connection;
+        home.current_screen = ScreenState::Connection;
     }
 }
 
@@ -99,15 +101,16 @@ pub fn handle_enter_key(
     input_box: &mut InputBox,
     error: &mut ErrorWidget,
     table: &mut TableWidget,
+    connection: &mut ConnectionPopup,
 ) {
-    match (home.show_popup, table.active) {
-        (true, _) => {
+    match (home.show_popup, table.active, connection.input_popup) {
+        (true, _, _j) => {
             home.popup_tx
                 .send((home.selected_button as u16, Some(true)))
                 .unwrap();
             home.show_popup = false;
         }
-        (_, true) => {
+        (_, true, _) => {
             let selected = table.enter();
             let data_item: Option<&Vec<Data>> = if let Some(SelectedItem::Device(device)) = selected
             {
@@ -137,6 +140,9 @@ pub fn handle_enter_key(
             }
 
             home.current_screen = ScreenState::Transfer;
+        }
+        (_, _, true) => {
+            connection.return_selected(table);
         }
         _ => match_input_state(home, input_box, error),
     }

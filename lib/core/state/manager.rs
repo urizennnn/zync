@@ -38,6 +38,12 @@ pub fn manage_state(
                 connection.draw_input(f);
             }
         }
+        ScreenState::Connection => {
+            connection.render(f);
+            if connection.input_popup {
+                connection.draw_input(f)
+            }
+        }
         _ => {}
     }
 }
