@@ -42,24 +42,29 @@ pub fn handle_n_key(
     input_box: &mut InputBox,
     connection: &mut ConnectionPopup,
 ) {
-    match (home.show_api_popup, home.show_popup, &home.current_screen) {
-        (true, _, _) => handle_char_key(home, c, input_box),
-        (false, false, _) => home.show_popup = true,
-        (_, _, ScreenState::Transfer) => {
-            connection.visible = true;
-            home.current_screen = ScreenState::Connection;
-        }
-        (_, _, ScreenState::Sessions) => {
-            connection.visible = true;
-            home.current_screen = ScreenState::Connection;
-        }
-        (_, _, ScreenState::Connection) => {
-            home.current_screen = ScreenState::Sessions;
-        }
-        _ => {}
+    if home.show_api_popup {
+        handle_char_key(home, c, input_box);
+        return;
+    }
+
+    if home.current_screen == ScreenState::Connection {
+        connection.visible = false;
+        home.current_screen = ScreenState::Sessions;
+        return;
+    }
+
+    if home.current_screen == ScreenState::Sessions || home.current_screen == ScreenState::Transfer
+    {
+        connection.visible = true;
+        home.current_screen = ScreenState::Connection;
+        // Reset any other states that might interfere
+        home.show_popup = false;
+        home.show_api_popup = false;
+        home.render_url_popup = false;
+        input_box.input_mode = InputMode::Normal;
+        unsafe { FLAG = false };
     }
 }
-
 pub fn handle_esc_key(home: &mut Home, input_box: &mut InputBox) {
     if home.show_popup {
         home.popup_tx
@@ -91,8 +96,7 @@ pub fn handle_right_key(
     } else if input_box.input_mode == InputMode::Editing {
         input_box.move_cursor_right();
     } else if connection.visible {
-        panic!("Not implemented");
-        // connection.next();
+        connection.next();
     }
 }
 
@@ -108,10 +112,8 @@ pub fn handle_left_key(
             .unwrap();
     } else if input_box.input_mode == InputMode::Editing {
         input_box.move_cursor_left();
-    }
-    if connection.visible {
-        panic!("Not implemented");
-        // connection.previous();
+    } else if connection.visible {
+        connection.previous();
     }
 }
 

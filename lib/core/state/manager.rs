@@ -27,7 +27,6 @@ pub fn manage_state(
             }
         }
         ScreenState::Connection => {
-            table.active = false;
             if connection.visible {
                 connection.render(f);
             }
