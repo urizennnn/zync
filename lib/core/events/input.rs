@@ -23,36 +23,40 @@ pub fn handle_help_key(
     handle_char_key(home, key, input_box);
 }
 
-pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, table: &mut TableWidget) {
-    match (
-        home.show_api_popup,
-        home.show_popup,
-        home.render_url_popup,
-        table.help,
-        table.connection,
-    ) {
-        (true, _, _, _, _) => handle_char_key(home, 'q', input_box),
-        (_, true, _, _, _) => {
-            home.popup_tx
-                .send((home.selected_button as u16, Some(false)))
-                .unwrap();
-            home.show_popup = false;
-        }
-        (_, _, true, _, _) => {}
-        (_, _, _, true, _) => {}
-        (_, _, _, _, true) => {}
-        _ => home.running = false,
+pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox) {
+    if home.show_api_popup {
+        handle_char_key(home, 'q', input_box);
+    } else if home.show_popup {
+        home.popup_tx
+            .send((home.selected_button as u16, Some(false)))
+            .unwrap();
+        home.show_popup = false;
+    } else {
+        home.running = false;
     }
 }
 
-pub fn handle_n_key(home: &mut Home, c: char, input_box: &mut InputBox, table: &mut TableWidget) {
-    if home.show_api_popup {
-        handle_char_key(home, c, input_box);
-    } else if !home.show_popup {
-        home.show_popup = true;
-    } else {
-        table.connection = !table.connection;
-        home.current_screen = ScreenState::Connection;
+pub fn handle_n_key(
+    home: &mut Home,
+    c: char,
+    input_box: &mut InputBox,
+    connection: &mut ConnectionPopup,
+) {
+    match (home.show_api_popup, home.show_popup, &home.current_screen) {
+        (true, _, _) => handle_char_key(home, c, input_box),
+        (false, false, _) => home.show_popup = true,
+        (_, _, ScreenState::Transfer) => {
+            connection.visible = true;
+            home.current_screen = ScreenState::Connection;
+        }
+        (_, _, ScreenState::Sessions) => {
+            connection.visible = true;
+            home.current_screen = ScreenState::Connection;
+        }
+        (_, _, ScreenState::Connection) => {
+            home.current_screen = ScreenState::Sessions;
+        }
+        _ => {}
     }
 }
 
@@ -74,7 +78,11 @@ pub fn handle_esc_key(home: &mut Home, input_box: &mut InputBox) {
     }
 }
 
-pub fn handle_right_key(home: &mut Home, input_box: &mut InputBox) {
+pub fn handle_right_key(
+    home: &mut Home,
+    input_box: &mut InputBox,
+    connection: &mut ConnectionPopup,
+) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
         home.popup_tx
@@ -82,10 +90,17 @@ pub fn handle_right_key(home: &mut Home, input_box: &mut InputBox) {
             .unwrap();
     } else if input_box.input_mode == InputMode::Editing {
         input_box.move_cursor_right();
+    } else if connection.visible {
+        panic!("Not implemented");
+        // connection.next();
     }
 }
 
-pub fn handle_left_key(home: &mut Home, input_box: &mut InputBox) {
+pub fn handle_left_key(
+    home: &mut Home,
+    input_box: &mut InputBox,
+    connection: &mut ConnectionPopup,
+) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
         home.popup_tx
@@ -93,6 +108,10 @@ pub fn handle_left_key(home: &mut Home, input_box: &mut InputBox) {
             .unwrap();
     } else if input_box.input_mode == InputMode::Editing {
         input_box.move_cursor_left();
+    }
+    if connection.visible {
+        panic!("Not implemented");
+        // connection.previous();
     }
 }
 
@@ -103,8 +122,8 @@ pub fn handle_enter_key(
     table: &mut TableWidget,
     connection: &mut ConnectionPopup,
 ) {
-    match (home.show_popup, table.active, connection.input_popup) {
-        (true, _, _j) => {
+    match (home.show_popup, table.active, connection.visible) {
+        (true, _, _) => {
             home.popup_tx
                 .send((home.selected_button as u16, Some(true)))
                 .unwrap();
@@ -142,7 +161,7 @@ pub fn handle_enter_key(
             home.current_screen = ScreenState::Transfer;
         }
         (_, _, true) => {
-            connection.return_selected(table);
+            connection.return_selected();
         }
         _ => match_input_state(home, input_box, error),
     }
@@ -197,13 +216,13 @@ pub fn handle_char_key(_: &mut Home, c: char, input_box: &mut InputBox) {
 }
 
 pub fn handle_up_key(_: &mut Home, table: &mut TableWidget) {
-    if !table.help && !table.connection {
+    if !table.help {
         table.previous();
     }
 }
 
 pub fn handle_down_arrow(_: &mut Home, table: &mut TableWidget) {
-    if !table.help && !table.connection {
+    if !table.help {
         table.next();
     }
 }

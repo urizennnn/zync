@@ -5,6 +5,7 @@ authors = ["urizennnn"]
 license = "MIT"
 edition="2021"
 
+
 [dependencies]
 log.workspace = true
 serde.workspace = true

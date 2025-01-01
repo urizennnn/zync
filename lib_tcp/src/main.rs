@@ -1,6 +1,7 @@
+use lib_tcp::methods::get::receive_files;
 use lib_tcp::{
     init::{init, update_init},
-    methods::{get::receive_files, upload::upload},
+    methods::{list::list, upload::upload},
 };
 use log::{error, info, warn};
 use once_cell::sync::Lazy;

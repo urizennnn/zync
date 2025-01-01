@@ -11,7 +11,6 @@ pub mod protocol_popup {
     use crate::{
         calculate::{calculate_popup_area, centered_rect},
         popup::InputBox,
-        widget::TableWidget,
     };
 
     #[derive(Debug, Clone, Copy, PartialEq, FromRepr, Display, EnumIter)]
@@ -40,9 +39,8 @@ pub mod protocol_popup {
             let next_index = index.saturating_sub(1);
             Self::from_repr(next_index).unwrap_or(self)
         }
-        pub fn return_selected_type(&self, table: &mut TableWidget) -> ConnectionType {
-            table.connection = !table.connection;
-            panic!("Not implemented {:?}", *self);
+        pub fn return_selected_type(&self) -> ConnectionType {
+            todo!("Not implemented {:?}", *self);
         }
     }
     impl ConnectionPopup {
@@ -56,10 +54,6 @@ pub mod protocol_popup {
         }
 
         pub fn render(&self, f: &mut Frame) {
-            if !self.visible {
-                return;
-            }
-
             let area = f.area();
             let popup_area = centered_rect(30, 20, area);
 
@@ -108,7 +102,7 @@ pub mod protocol_popup {
             f.render_widget(tabs, chunks[2]);
 
             let instructions = Paragraph::new(Line::from(vec![Span::styled(
-                "← → to select • Enter to confirm • Esc to cancel",
+                "← → to select • Enter to confirm • n to cancel",
                 Style::default().fg(Color::DarkGray),
             )]))
             .alignment(Alignment::Center);
@@ -122,8 +116,8 @@ pub mod protocol_popup {
         pub fn previous(&mut self) {
             self.selected = self.selected.previous_val();
         }
-        pub fn return_selected(&self, table: &mut TableWidget) -> ConnectionType {
-            self.selected.return_selected_type(table)
+        pub fn return_selected(&self) -> ConnectionType {
+            self.selected.return_selected_type()
         }
 
         pub fn draw_input(&mut self, f: &mut Frame) {

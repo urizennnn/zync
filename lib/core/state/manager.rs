@@ -19,27 +19,18 @@ pub fn manage_state(
             if table.help {
                 help.draw_dashboard_help(f);
             }
-            if table.connection {
-                connection.render(f);
-            }
-            if connection.input_popup {
-                connection.draw_input(f);
-            }
         }
         ScreenState::Transfer => {
             table_ui(f, table);
             if table.help {
                 help.draw_dashboard_help(f);
             }
-            if table.connection {
-                connection.render(f);
-            }
-            if connection.input_popup {
-                connection.draw_input(f);
-            }
         }
         ScreenState::Connection => {
-            connection.render(f);
+            table.active = false;
+            if connection.visible {
+                connection.render(f);
+            }
             if connection.input_popup {
                 connection.draw_input(f)
             }

@@ -14,7 +14,7 @@ pub mod homepage {
     use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
     use crate::core::core_lib::check_config;
-    use crate::dashboard::dashboard_view::{table_ui, Data};
+    use crate::dashboard::dashboard_view::Data;
     use crate::error::error_widget::ErrorWidget;
     use crate::help::help_popup::HelpPopup;
     use crate::input::{
@@ -25,7 +25,7 @@ pub mod homepage {
     use crate::manager::manage_state;
     use crate::popup::{ApiPopup, InputBox};
     use crate::protocol::protocol_popup::ConnectionPopup;
-    use crate::sessions::{draw_session_table_ui, Device};
+    use crate::sessions::Device;
     use crate::state::ScreenState;
     use crate::widget::{TableWidget, TableWidgetItemManager};
 
@@ -53,25 +53,13 @@ pub mod homepage {
         ) -> io::Result<()> {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char('q') => handle_q_key(self, input_box, table),
-                    KeyCode::Char('n') => handle_n_key(self, 'n', input_box, table),
+                    KeyCode::Char('q') => handle_q_key(self, input_box),
+                    KeyCode::Char('n') => handle_n_key(self, 'n', input_box, connection),
                     KeyCode::Down => handle_down_arrow(self, table),
                     KeyCode::Up => handle_up_key(self, table),
                     KeyCode::Esc => handle_esc_key(self, input_box),
-                    KeyCode::Right => {
-                        if table.connection {
-                            connection.selected = connection.selected.next_val();
-                            return Ok(());
-                        }
-                        handle_right_key(self, input_box)
-                    }
-                    KeyCode::Left => {
-                        if table.connection {
-                            connection.selected = connection.selected.previous_val();
-                            return Ok(());
-                        }
-                        handle_left_key(self, input_box)
-                    }
+                    KeyCode::Right => handle_right_key(self, input_box, connection),
+                    KeyCode::Left => handle_left_key(self, input_box, connection),
                     KeyCode::Enter => {
                         // if table.connection {
                         //     connection.return_selected(table);

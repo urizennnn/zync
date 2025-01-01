@@ -31,7 +31,6 @@ pub struct TableWidget {
     pub scroll_state: ScrollbarState,
     pub colors: TableColors,
     pub help: bool,
-    pub connection: bool,
     pub active: bool,
 }
 
@@ -73,7 +72,6 @@ impl TableWidget {
     pub fn new() -> Self {
         Self {
             active: false,
-            connection: false,
             state: TableState::default(),
             items: Vec::new(),
             longest_item_lens: vec![0; 4],
