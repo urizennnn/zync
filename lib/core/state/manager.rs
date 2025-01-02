@@ -4,6 +4,7 @@ use crate::{
     dashboard::dashboard_view::table_ui,
     help::help_popup::HelpPopup,
     home::homepage::Home,
+    popup::InputBox,
     protocol::protocol_popup::{ConnectionPopup, ConnectionType},
     sessions::draw_session_table_ui,
     state::ScreenState,
@@ -16,6 +17,7 @@ pub fn manage_state(
     f: &mut Frame,
     help: &mut HelpPopup,
     connection: &mut ConnectionPopup,
+    input: &mut InputBox,
 ) {
     match home.current_screen {
         ScreenState::Sessions => {
@@ -38,7 +40,7 @@ pub fn manage_state(
         }
         ScreenState::TCP => {
             if connection.input_popup {
-                connection.draw_input(f, ConnectionType::TCP)
+                connection.draw_input(f, ConnectionType::TCP, input)
             }
         }
         _ => {}

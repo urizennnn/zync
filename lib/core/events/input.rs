@@ -45,7 +45,7 @@ pub fn handle_n_key(
     if !home.show_api_popup && !home.show_popup {
         home.show_popup = true;
     }
-    if home.show_api_popup {
+    if home.show_api_popup || connection.input_popup {
         handle_char_key(home, c, input_box);
         return;
     }

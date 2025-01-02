@@ -120,7 +120,12 @@ pub mod protocol_popup {
             self.selected.return_selected_type()
         }
 
-        pub fn draw_input(&mut self, f: &mut Frame, screen_state: ConnectionType) {
+        pub fn draw_input(
+            &mut self,
+            f: &mut Frame,
+            screen_state: ConnectionType,
+            input: &mut InputBox,
+        ) {
             match screen_state {
                 ConnectionType::TCP => {
                     let area = calculate_popup_area(f.area(), 25, 20);
@@ -145,16 +150,21 @@ pub mod protocol_popup {
                         .constraints([
                             Constraint::Length(1), // For prompt
                             Constraint::Length(3), // For input box
+                            Constraint::Length(1), // For instructions
                         ])
                         .split(inner_area);
 
                     let prompt = Paragraph::new("Enter IP Address:")
                         .style(Style::default().fg(Color::White));
                     f.render_widget(prompt, text_area[0]);
+                    let instructions = Paragraph::new(Line::from(vec![Span::styled(
+                        "Hit `e` to start typing • Enter to submit • Esc to cancel",
+                        Style::default().fg(Color::DarkGray),
+                    )]))
+                    .alignment(Alignment::Center);
+                    f.render_widget(instructions, text_area[2]);
 
-                    let mut input_widget = InputBox::new();
-                    input_widget.input_mode = crate::popup::InputMode::Editing;
-                    input_widget.draw_in_popup(f, text_area[1]);
+                    input.draw_in_popup(f, text_area[1]);
                 }
                 _ => {
                     todo!("Not implemented for {:?}", screen_state)

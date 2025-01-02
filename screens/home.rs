@@ -141,7 +141,14 @@ pub mod homepage {
                 match check_config() {
                     Ok(_) => {
                         term.lock().unwrap().draw(|f| {
-                            manage_state(&mut self, &mut table, f, &mut help, &mut connection)
+                            manage_state(
+                                &mut self,
+                                &mut table,
+                                f,
+                                &mut help,
+                                &mut connection,
+                                &mut input_box,
+                            )
                         })?;
                     }
                     Err(_) => {
