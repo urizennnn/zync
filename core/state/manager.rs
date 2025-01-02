@@ -7,7 +7,7 @@ use crate::{
         help::help_popup::HelpPopup,
         home::Home,
         popup::InputBox,
-        protocol_popup::protocol_popup::{ConnectionPopup, ConnectionType},
+        protocol_popup::{ConnectionPopup, ConnectionType},
         session::draw_session_table_ui,
     },
 };

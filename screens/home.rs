@@ -8,8 +8,7 @@ use crate::events::input::{
     handle_help_key, handle_left_key, handle_n_key, handle_q_key, handle_right_key, handle_up_key,
 };
 use crate::screens::{
-    error::error_widget::ErrorWidget, popup::InputBox,
-    protocol_popup::protocol_popup::ConnectionPopup,
+    error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
 use crate::state::{manager::manage_state, state::ScreenState};
 use crossterm::event::{self, Event, KeyCode};
@@ -51,7 +50,7 @@ impl Home {
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             match key.code {
-                KeyCode::Char('q') => handle_q_key(self, input_box),
+                KeyCode::Char('q') => handle_q_key(self, input_box, connection),
                 KeyCode::Char('n') => handle_n_key(self, 'n', input_box, connection),
                 KeyCode::Down => handle_down_arrow(self, table),
                 KeyCode::Up => handle_up_key(self, table),

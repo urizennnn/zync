@@ -8,7 +8,7 @@ use crate::screens::home::Home;
 use crate::screens::popup::InputBox;
 use crate::screens::popup::InputMode;
 use crate::screens::popup::FLAG;
-use crate::screens::protocol_popup::protocol_popup::ConnectionPopup;
+use crate::screens::protocol_popup::ConnectionPopup;
 use crate::state::state::ScreenState;
 
 pub fn handle_help_key(
@@ -23,7 +23,7 @@ pub fn handle_help_key(
     handle_char_key(home, key, input_box);
 }
 
-pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox) {
+pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut ConnectionPopup) {
     if home.show_api_popup {
         handle_char_key(home, 'q', input_box);
     } else if home.show_popup {
@@ -31,6 +31,9 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox) {
             .send((home.selected_button as u16, Some(false)))
             .unwrap();
         home.show_popup = false;
+    } else if connection.input_popup {
+        connection.input_popup = false;
+        home.current_screen = ScreenState::Sessions;
     } else {
         home.running = false;
     }
