@@ -6,6 +6,10 @@ license = "MIT"
 edition="2021"
 
 
+[lib]
+name ="lib_tcp"
+path = "src/lib.rs"
+
 [dependencies]
 log.workspace = true
 serde.workspace = true

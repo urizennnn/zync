@@ -1,6 +1,7 @@
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum ScreenState {
     Home,
+    ConnectionLog,
     Popup,
     Transfer,
     Connection,

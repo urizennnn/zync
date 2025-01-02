@@ -1,8 +1,6 @@
-use lib_tcp::methods::get::receive_files;
-use lib_tcp::{
-    init::{init, update_init},
-    methods::{list::list, upload::upload},
-};
+use crate::init::{init, update_init};
+use crate::methods::{get::receive_files, list::list, upload::upload};
+
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
 use simple_logger::SimpleLogger;
