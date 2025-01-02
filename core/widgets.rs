@@ -8,8 +8,7 @@ use ratatui::{
     widgets::{ScrollbarState, TableState},
 };
 
-use crate::dashboard::dashboard_view::Data;
-use crate::sessions::Device;
+use crate::screens::{dashboard::Data, session::Device};
 
 const ITEM_HEIGHT: usize = 2;
 #[derive(Debug)]

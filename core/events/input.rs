@@ -1,15 +1,15 @@
-use crate::{
-    core::core_lib::create_config,
-    dashboard::dashboard_view::Data,
-    error::error_widget::ErrorWidget,
-    home::homepage::Home,
-    popup::{InputBox, InputMode},
-    protocol::protocol_popup::ConnectionPopup,
-    state::ScreenState,
-    widget::{SelectedItem, TableWidget},
-};
-
-use crate::popup::FLAG;
+use crate::core_mod::core::create_config;
+use crate::core_mod::widgets::SelectedItem;
+use crate::core_mod::widgets::TableWidget;
+use crate::screens::dashboard::Data;
+use crate::screens::error::error_widget::ErrorType;
+use crate::screens::error::error_widget::ErrorWidget;
+use crate::screens::home::Home;
+use crate::screens::popup::InputBox;
+use crate::screens::popup::InputMode;
+use crate::screens::popup::FLAG;
+use crate::screens::protocol_popup::protocol_popup::ConnectionPopup;
+use crate::state::state::ScreenState;
 
 pub fn handle_help_key(
     home: &mut Home,
@@ -184,11 +184,7 @@ fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut Erro
                 }
                 Err(err) => {
                     home.show_api_popup = false;
-                    error.set_val(
-                        err.to_string(),
-                        &mut crate::error::error_widget::ErrorType::Warning,
-                        "Ok".to_string(),
-                    );
+                    error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
                     home.error = true;
                 }
             }
@@ -202,11 +198,7 @@ fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut Erro
                 }
                 Err(err) => {
                     home.show_api_popup = false;
-                    error.set_val(
-                        err.to_string(),
-                        &mut crate::error::error_widget::ErrorType::Warning,
-                        "Ok".to_string(),
-                    );
+                    error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
                     home.error = true;
                 }
             }

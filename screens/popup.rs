@@ -1,5 +1,3 @@
-use crate::calculate::calculate_popup_area;
-use crate::home::homepage::Home;
 use derive_setters::Setters;
 use ratatui::layout::{Constraint, Layout, Position};
 use ratatui::style::{Modifier, Style, Stylize};
@@ -8,6 +6,10 @@ use ratatui::widgets::{Block, Paragraph, Wrap};
 use ratatui::{layout::Alignment, style::Color, Frame};
 use ratatui::{layout::Rect, text::Line, widgets::Clear};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
+
+use crate::utils::calculate::calculate_popup_area;
+
+use super::home::Home;
 
 pub static mut FLAG: bool = false;
 

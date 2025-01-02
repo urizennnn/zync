@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::home;
+use crate::screens::home::Home;
 
 pub fn init_app() -> Result<(), Box<dyn Error>> {
     tui_logger::init_logger(log::LevelFilter::Trace)?;
@@ -56,7 +56,7 @@ pub fn init_app() -> Result<(), Box<dyn Error>> {
     crossterm::execute!(stdout, EnableMouseCapture, EnterAlternateScreen)?;
 
     let backend = Arc::new(Mutex::new(ratatui::init()));
-    let app = home::homepage::Home::default().run(backend.clone());
+    let app = Home::default().run(backend.clone());
 
     // Restore TUI state after app ends
     let res = backend.lock().unwrap().show_cursor();

@@ -1,15 +1,18 @@
 use ratatui::Frame;
 
 use crate::{
-    dashboard::dashboard_view::table_ui,
-    help::help_popup::HelpPopup,
-    home::homepage::Home,
-    popup::InputBox,
-    protocol::protocol_popup::{ConnectionPopup, ConnectionType},
-    sessions::draw_session_table_ui,
-    state::ScreenState,
-    widget::TableWidget,
+    core_mod::widgets::TableWidget,
+    screens::{
+        dashboard::table_ui,
+        help::help_popup::HelpPopup,
+        home::Home,
+        popup::InputBox,
+        protocol_popup::protocol_popup::{ConnectionPopup, ConnectionType},
+        session::draw_session_table_ui,
+    },
 };
+
+use super::state::ScreenState;
 
 pub fn manage_state(
     home: &mut Home,
