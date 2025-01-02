@@ -1,14 +1,15 @@
-use crate::{
-    core::core_lib::create_config,
-    dashboard::dashboard_view::Data,
-    error::error_widget::ErrorWidget,
-    home::homepage::Home,
-    popup::{InputBox, InputMode},
-    state::ScreenState,
-    widget::{SelectedItem, TableWidget},
-};
-
-use crate::popup::FLAG;
+use crate::core_mod::core::create_config;
+use crate::core_mod::widgets::SelectedItem;
+use crate::core_mod::widgets::TableWidget;
+use crate::screens::dashboard::Data;
+use crate::screens::error::error_widget::ErrorType;
+use crate::screens::error::error_widget::ErrorWidget;
+use crate::screens::home::Home;
+use crate::screens::popup::InputBox;
+use crate::screens::popup::InputMode;
+use crate::screens::popup::FLAG;
+use crate::screens::protocol_popup::ConnectionPopup;
+use crate::state::state::ScreenState;
 
 pub fn handle_help_key(
     home: &mut Home,
@@ -22,38 +23,54 @@ pub fn handle_help_key(
     handle_char_key(home, key, input_box);
 }
 
-pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, table: &mut TableWidget) {
-    match (
-        home.show_api_popup,
-        home.show_popup,
-        home.render_url_popup,
-        table.help,
-        table.connection,
-    ) {
-        (true, _, _, _, _) => handle_char_key(home, 'q', input_box),
-        (_, true, _, _, _) => {
-            home.popup_tx
-                .send((home.selected_button as u16, Some(false)))
-                .unwrap();
-            home.show_popup = false;
-        }
-        (_, _, true, _, _) => {}
-        (_, _, _, true, _) => {}
-        (_, _, _, _, true) => {}
-        _ => home.running = false,
-    }
-}
-
-pub fn handle_n_key(home: &mut Home, c: char, input_box: &mut InputBox, table: &mut TableWidget) {
+pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut ConnectionPopup) {
     if home.show_api_popup {
-        handle_char_key(home, c, input_box);
-    } else if !home.show_popup {
-        home.show_popup = true;
+        handle_char_key(home, 'q', input_box);
+    } else if home.show_popup {
+        home.popup_tx
+            .send((home.selected_button as u16, Some(false)))
+            .unwrap();
+        home.show_popup = false;
+    } else if connection.input_popup {
+        connection.input_popup = false;
+        home.current_screen = ScreenState::Sessions;
     } else {
-        table.connection = !table.connection;
+        home.running = false;
     }
 }
 
+pub fn handle_n_key(
+    home: &mut Home,
+    c: char,
+    input_box: &mut InputBox,
+    connection: &mut ConnectionPopup,
+) {
+    if !home.show_api_popup && !home.show_popup {
+        home.show_popup = true;
+    }
+    if home.show_api_popup || connection.input_popup {
+        handle_char_key(home, c, input_box);
+        return;
+    }
+
+    if home.current_screen == ScreenState::Connection {
+        connection.visible = false;
+        home.current_screen = ScreenState::Sessions;
+        return;
+    }
+
+    if home.current_screen == ScreenState::Sessions || home.current_screen == ScreenState::Transfer
+    {
+        connection.visible = true;
+        home.current_screen = ScreenState::Connection;
+        // Reset any other states that might interfere
+        home.show_popup = false;
+        home.show_api_popup = false;
+        home.render_url_popup = false;
+        input_box.input_mode = InputMode::Normal;
+        unsafe { FLAG = false };
+    }
+}
 pub fn handle_esc_key(home: &mut Home, input_box: &mut InputBox) {
     if home.show_popup {
         home.popup_tx
@@ -72,7 +89,11 @@ pub fn handle_esc_key(home: &mut Home, input_box: &mut InputBox) {
     }
 }
 
-pub fn handle_right_key(home: &mut Home, input_box: &mut InputBox) {
+pub fn handle_right_key(
+    home: &mut Home,
+    input_box: &mut InputBox,
+    connection: &mut ConnectionPopup,
+) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
         home.popup_tx
@@ -80,10 +101,16 @@ pub fn handle_right_key(home: &mut Home, input_box: &mut InputBox) {
             .unwrap();
     } else if input_box.input_mode == InputMode::Editing {
         input_box.move_cursor_right();
+    } else if connection.visible {
+        connection.next();
     }
 }
 
-pub fn handle_left_key(home: &mut Home, input_box: &mut InputBox) {
+pub fn handle_left_key(
+    home: &mut Home,
+    input_box: &mut InputBox,
+    connection: &mut ConnectionPopup,
+) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
         home.popup_tx
@@ -91,6 +118,8 @@ pub fn handle_left_key(home: &mut Home, input_box: &mut InputBox) {
             .unwrap();
     } else if input_box.input_mode == InputMode::Editing {
         input_box.move_cursor_left();
+    } else if connection.visible {
+        connection.previous();
     }
 }
 
@@ -99,15 +128,16 @@ pub fn handle_enter_key(
     input_box: &mut InputBox,
     error: &mut ErrorWidget,
     table: &mut TableWidget,
+    connection: &mut ConnectionPopup,
 ) {
-    match (home.show_popup, table.active) {
-        (true, _) => {
+    match (home.show_popup, table.active, connection.visible) {
+        (true, _, _) => {
             home.popup_tx
                 .send((home.selected_button as u16, Some(true)))
                 .unwrap();
             home.show_popup = false;
         }
-        (_, true) => {
+        (_, true, _) => {
             let selected = table.enter();
             let data_item: Option<&Vec<Data>> = if let Some(SelectedItem::Device(device)) = selected
             {
@@ -138,6 +168,11 @@ pub fn handle_enter_key(
 
             home.current_screen = ScreenState::Transfer;
         }
+        (_, _, true) => {
+            connection.input_popup = true;
+            home.current_screen = ScreenState::TCP;
+            connection.return_selected();
+        }
         _ => match_input_state(home, input_box, error),
     }
 }
@@ -152,11 +187,7 @@ fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut Erro
                 }
                 Err(err) => {
                     home.show_api_popup = false;
-                    error.set_val(
-                        err.to_string(),
-                        &mut crate::error::error_widget::ErrorType::Warning,
-                        "Ok".to_string(),
-                    );
+                    error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
                     home.error = true;
                 }
             }
@@ -170,11 +201,7 @@ fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut Erro
                 }
                 Err(err) => {
                     home.show_api_popup = false;
-                    error.set_val(
-                        err.to_string(),
-                        &mut crate::error::error_widget::ErrorType::Warning,
-                        "Ok".to_string(),
-                    );
+                    error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
                     home.error = true;
                 }
             }
@@ -191,13 +218,13 @@ pub fn handle_char_key(_: &mut Home, c: char, input_box: &mut InputBox) {
 }
 
 pub fn handle_up_key(_: &mut Home, table: &mut TableWidget) {
-    if !table.help && !table.connection {
+    if !table.help {
         table.previous();
     }
 }
 
 pub fn handle_down_arrow(_: &mut Home, table: &mut TableWidget) {
-    if !table.help && !table.connection {
+    if !table.help {
         table.next();
     }
 }

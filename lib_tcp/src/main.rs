@@ -1,13 +1,14 @@
+use lib_tcp::methods::get::receive_files;
+use lib_tcp::{
+    init::{init, update_init},
+    methods::{list::list, upload::upload},
+};
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
 use simple_logger::SimpleLogger;
 use std::{
     error::Error,
     io::{self, BufRead, Write},
-};
-use tcp_client::{
-    init::{self, update_init},
-    methods::{get::receive_files, list::list, upload::upload},
 };
 use tokio::{io::AsyncReadExt, io::AsyncWriteExt, net::TcpStream};
 use whoami::username;
@@ -21,7 +22,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     stream.write_all(USER.as_bytes()).await?;
     stream.flush().await?;
     info!("Connected to server");
-    init::init().await?;
+    init().await?;
     let mut buffer = vec![0; 5_242_880];
 
     loop {

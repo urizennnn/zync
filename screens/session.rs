@@ -1,11 +1,4 @@
-use crate::{
-    dashboard::dashboard_view::Data,
-    event::{AsyncEvent, NewTrait},
-    home::homepage::Home,
-    state::ScreenState,
-    widget::{Item, TableWidget, TableWidgetItemManager},
-};
-use once_cell::sync::Lazy;
+use crate::{core_mod::widgets::Item, state::state::ScreenState};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
@@ -13,8 +6,11 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Paragraph, Row, Table},
     Frame,
 };
-use tokio::sync::Mutex;
 use unicode_width::UnicodeWidthStr;
+
+use crate::core_mod::widgets::{TableWidget, TableWidgetItemManager};
+
+use super::{dashboard::Data, home::Home};
 
 #[derive(Debug)]
 pub struct Device {
@@ -25,8 +21,8 @@ pub struct Device {
     pub files: Option<Vec<Data>>,
 }
 
-pub static SESSION_EVENT: Lazy<Mutex<AsyncEvent<usize>>> =
-    Lazy::new(|| Mutex::new(AsyncEvent::new()));
+// pub static SESSION_EVENT: Lazy<Mutex<AsyncEvent<usize>>> =
+//     Lazy::new(|| Mutex::new(AsyncEvent::new()));
 
 impl Device {
     pub fn new_empty() -> Self {
@@ -64,7 +60,7 @@ impl TableWidgetItemManager for Device {
     type Item = Device;
 
     fn add_item(&mut self, item: Self::Item, table: &mut TableWidget) {
-        table.items.push(crate::widget::Item::Device(item));
+        table.items.push(Item::Device(item));
         let device_items: Vec<&Self::Item> = table
             .items
             .iter()

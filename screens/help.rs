@@ -7,7 +7,7 @@ pub mod help_popup {
         Frame,
     };
 
-    use crate::calculate::calculate_popup_area;
+    use crate::utils::calculate::calculate_popup_area;
 
     #[derive(Debug, Clone)]
     pub struct HelpPopup {

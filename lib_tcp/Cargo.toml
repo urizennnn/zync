@@ -1,0 +1,20 @@
+[package]
+name = "lib_tcp"
+description = "A library to house the core tcp logic"
+authors = ["urizennnn"]
+license = "MIT"
+edition="2021"
+
+
+[dependencies]
+log.workspace = true
+serde.workspace = true
+tokio.workspace = true
+whoami.workspace = true
+once_cell.workspace = true
+serde_json.workspace = true
+dirs.workspace = true
+chrono = "0.4.39"
+simple_logger = "5.0.0"
+
+

@@ -8,8 +8,7 @@ use ratatui::{
     widgets::{ScrollbarState, TableState},
 };
 
-use crate::dashboard::dashboard_view::Data;
-use crate::sessions::Device;
+use crate::screens::{dashboard::Data, session::Device};
 
 const ITEM_HEIGHT: usize = 2;
 #[derive(Debug)]
@@ -31,7 +30,6 @@ pub struct TableWidget {
     pub scroll_state: ScrollbarState,
     pub colors: TableColors,
     pub help: bool,
-    pub connection: bool,
     pub active: bool,
 }
 
@@ -73,7 +71,6 @@ impl TableWidget {
     pub fn new() -> Self {
         Self {
             active: false,
-            connection: false,
             state: TableState::default(),
             items: Vec::new(),
             longest_item_lens: vec![0; 4],

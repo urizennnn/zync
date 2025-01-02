@@ -8,38 +8,55 @@ version = "0.0.1-alpha"
 keywords = ["cli", "file-transfer", "zync"]
 edition = "2021"
 
+[workspace]
+members = [
+	"./lib_tcp/"
+, "lib_p2p"]
+
 [lib]
 path = "src/lib.rs"
 
+[workspace.dependencies]
+once_cell = "1.20.2"
+serde = "1.0.214"
+serde_json = "1.0.132"
+whoami = "1.5.2"
+tokio ={version="1.41.0", features=["full"]} 
+log = "0.4.22"
+dirs = "5.0.1"
+
 [dependencies]
+log.workspace = true
+serde.workspace = true
+tokio.workspace = true
+whoami.workspace = true
+once_cell.workspace = true
+serde_json.workspace = true
+dirs.workspace = true
 better-panic = "0.3.0"
 color-eyre = "0.6.3"
 crossterm = "0.28.1"
 derive_setters = "0.1.6"
 dialoguer = "0.11.0"
-dirs = "5.0.1"
 human-panic = "2.0.2"
-itertools = "0.13.0"
+itertools = "0.14.0"
 libc = "0.2.161"
 lipsum = "0.9.1"
-log = "0.4.22"
 nanoid = "0.4.0"
-once_cell = "1.20.2"
 open = "5.3.0"
 rand = "0.8.5"
 ratatui = "0.29.0"
 reqwest = "0.12.9"
-serde = "1.0.214"
-serde_json = "1.0.132"
 strip-ansi-escapes = "0.2.0"
 strum = "0.26.3"
 style = "0.1.0"
 tailwind = "0.1.0"
-tokio ={version="1.41.0", features=["full"]} 
 tui-big-text = "0.7.0"
 tui-logger = "0.14.0"
 tui-textarea = "0.7.0"
 tui_confirm_dialog = "0.2.4"
 unicode-width = "0.2.0"
-whoami = "1.5.2"
+
+## workspace
+lib_tcp = { path = "lib_tcp" }
 
