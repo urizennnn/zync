@@ -11,7 +11,7 @@ edition = "2021"
 [workspace]
 members = [
 	"./lib_tcp/"
-]
+, "lib_p2p"]
 
 [lib]
 path = "src/lib.rs"

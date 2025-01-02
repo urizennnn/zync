@@ -40,7 +40,7 @@ pub mod protocol_popup {
             Self::from_repr(next_index).unwrap_or(self)
         }
         pub fn return_selected_type(&self) -> ConnectionType {
-            todo!("Not implemented {:?}", *self);
+            *self
         }
     }
     impl ConnectionPopup {
@@ -120,11 +120,46 @@ pub mod protocol_popup {
             self.selected.return_selected_type()
         }
 
-        pub fn draw_input(&mut self, f: &mut Frame) {
-            let input_widget = InputBox::new();
-            let area = calculate_popup_area(f.area(), 20, 30);
-            f.render_widget(Clear, f.area());
-            input_widget.draw_in_popup(f, area);
+        pub fn draw_input(&mut self, f: &mut Frame, screen_state: ConnectionType) {
+            match screen_state {
+                ConnectionType::TCP => {
+                    let area = calculate_popup_area(f.area(), 25, 20);
+
+                    f.render_widget(Clear, area);
+
+                    let block = Block::default()
+                        .title("TCP IP Address")
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Cyan));
+
+                    f.render_widget(block.clone(), area);
+
+                    let inner_area = area.inner(ratatui::layout::Margin {
+                        vertical: 1,
+                        horizontal: 2,
+                    });
+
+                    // Render prompt text
+                    let text_area = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([
+                            Constraint::Length(1), // For prompt
+                            Constraint::Length(3), // For input box
+                        ])
+                        .split(inner_area);
+
+                    let prompt = Paragraph::new("Enter IP Address:")
+                        .style(Style::default().fg(Color::White));
+                    f.render_widget(prompt, text_area[0]);
+
+                    let mut input_widget = InputBox::new();
+                    input_widget.input_mode = crate::popup::InputMode::Editing;
+                    input_widget.draw_in_popup(f, text_area[1]);
+                }
+                _ => {
+                    todo!("Not implemented for {:?}", screen_state)
+                }
+            }
         }
     }
 }

@@ -42,6 +42,9 @@ pub fn handle_n_key(
     input_box: &mut InputBox,
     connection: &mut ConnectionPopup,
 ) {
+    if !home.show_api_popup && !home.show_popup {
+        home.show_popup = true;
+    }
     if home.show_api_popup {
         handle_char_key(home, c, input_box);
         return;
@@ -163,6 +166,8 @@ pub fn handle_enter_key(
             home.current_screen = ScreenState::Transfer;
         }
         (_, _, true) => {
+            connection.input_popup = true;
+            home.current_screen = ScreenState::TCP;
             connection.return_selected();
         }
         _ => match_input_state(home, input_box, error),

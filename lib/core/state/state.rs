@@ -5,5 +5,6 @@ pub enum ScreenState {
     Transfer,
     Connection,
     Help,
+    TCP,
     Sessions,
 }
