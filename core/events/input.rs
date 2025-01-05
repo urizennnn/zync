@@ -5,6 +5,7 @@ use crate::screens::dashboard::Data;
 use crate::screens::error::error_widget::ErrorType;
 use crate::screens::error::error_widget::ErrorWidget;
 use crate::screens::home::Home;
+use crate::screens::host_type::HostTypePopup;
 use crate::screens::popup::InputBox;
 use crate::screens::popup::InputMode;
 use crate::screens::popup::FLAG;
@@ -93,6 +94,7 @@ pub fn handle_right_key(
     home: &mut Home,
     input_box: &mut InputBox,
     connection: &mut ConnectionPopup,
+    host: &mut HostTypePopup,
 ) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
@@ -103,6 +105,9 @@ pub fn handle_right_key(
         input_box.move_cursor_right();
     } else if connection.visible {
         connection.next();
+    } else if host.visible {
+        panic!("Host type popup not implemented");
+        host.next();
     }
 }
 
@@ -110,6 +115,7 @@ pub fn handle_left_key(
     home: &mut Home,
     input_box: &mut InputBox,
     connection: &mut ConnectionPopup,
+    host: &mut HostTypePopup,
 ) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
@@ -120,6 +126,8 @@ pub fn handle_left_key(
         input_box.move_cursor_left();
     } else if connection.visible {
         connection.previous();
+    } else if host.visible {
+        host.previous();
     }
 }
 

@@ -1,4 +1,7 @@
-use super::{dashboard::Data, help::help_popup::HelpPopup, popup::ApiPopup, session::Device};
+use super::{
+    dashboard::Data, help::help_popup::HelpPopup, host_type::HostTypePopup, popup::ApiPopup,
+    session::Device,
+};
 use crate::core_mod::{
     core::check_config,
     widgets::{TableWidget, TableWidgetItemManager},
@@ -47,6 +50,7 @@ impl Home {
         table: &mut TableWidget,
         connection: &mut ConnectionPopup,
         error: &mut ErrorWidget,
+        host: &mut HostTypePopup,
     ) -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             match key.code {
@@ -55,8 +59,8 @@ impl Home {
                 KeyCode::Down => handle_down_arrow(self, table),
                 KeyCode::Up => handle_up_key(self, table),
                 KeyCode::Esc => handle_esc_key(self, input_box),
-                KeyCode::Right => handle_right_key(self, input_box, connection),
-                KeyCode::Left => handle_left_key(self, input_box, connection),
+                KeyCode::Right => handle_right_key(self, input_box, connection, host),
+                KeyCode::Left => handle_left_key(self, input_box, connection, host),
                 KeyCode::Enter => {
                     // if table.connection {
                     //     connection.return_selected(table);
@@ -117,6 +121,7 @@ impl Home {
         let mut connection = ConnectionPopup::new();
         let mut api_popup = ApiPopup::new();
         let mut error = ErrorWidget::new();
+        let mut host = HostTypePopup::new();
         while self.running {
             if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
                 match confirmed {
@@ -145,6 +150,7 @@ impl Home {
                             &mut help,
                             &mut connection,
                             &mut input_box,
+                            &mut host,
                         )
                     })?;
                 }
@@ -167,7 +173,13 @@ impl Home {
                     })?;
                 }
             }
-            self.handle_events(&mut input_box, &mut table, &mut connection, &mut error)?;
+            self.handle_events(
+                &mut input_box,
+                &mut table,
+                &mut connection,
+                &mut error,
+                &mut host,
+            )?;
         }
         Ok(())
     }

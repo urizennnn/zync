@@ -6,6 +6,7 @@ use crate::{
         dashboard::table_ui,
         help::help_popup::HelpPopup,
         home::Home,
+        host_type::HostTypePopup,
         popup::InputBox,
         protocol_popup::{ConnectionPopup, ConnectionType},
         session::draw_session_table_ui,
@@ -21,6 +22,7 @@ pub fn manage_state(
     help: &mut HelpPopup,
     connection: &mut ConnectionPopup,
     input: &mut InputBox,
+    host: &mut HostTypePopup,
 ) {
     match home.current_screen {
         ScreenState::Sessions => {
@@ -42,9 +44,13 @@ pub fn manage_state(
             }
         }
         ScreenState::TCP => {
-            if connection.input_popup {
-                connection.draw_input(f, ConnectionType::TCP, input)
+            host.visible = true;
+            if host.visible {
+                host.render(f);
             }
+            // if connection.input_popup {
+            //     connection.draw_input(f, ConnectionType::TCP, input)
+            // }
         }
         _ => {}
     }
