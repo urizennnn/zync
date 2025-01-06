@@ -22,6 +22,7 @@ serde = "1.0.214"
 serde_json = "1.0.132"
 whoami = "1.5.2"
 tokio ={version="1.41.0", features=["full"]} 
+reqwest = "0.12.9"
 log = "0.4.22"
 dirs = "5.0.1"
 
@@ -33,6 +34,7 @@ whoami.workspace = true
 once_cell.workspace = true
 serde_json.workspace = true
 dirs.workspace = true
+reqwest.workspace = true
 better-panic = "0.3.0"
 color-eyre = "0.6.3"
 crossterm = "0.28.1"
@@ -46,7 +48,6 @@ nanoid = "0.4.0"
 open = "5.3.0"
 rand = "0.8.5"
 ratatui = "0.29.0"
-reqwest = "0.12.9"
 strip-ansi-escapes = "0.2.0"
 strum = "0.26.3"
 style = "0.1.0"
@@ -59,4 +60,5 @@ unicode-width = "0.2.0"
 
 ## workspace
 lib_tcp = { path = "lib_tcp" }
+futures = "0.3.31"
 

@@ -1,5 +1,6 @@
 use crate::init::{init, update_init};
 use crate::methods::{get::receive_files, list::list, upload::upload};
+use crate::utils::get_ip::{self, get_local_ip, get_public_ip};
 
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
@@ -8,13 +9,18 @@ use std::{
     error::Error,
     io::{self, BufRead, Write},
 };
-use tokio::{io::AsyncReadExt, io::AsyncWriteExt, net::TcpStream};
+use tokio::{io::AsyncReadExt, io::AsyncWriteExt, net::TcpListener, net::TcpStream};
 use whoami::username;
 
 pub static USER: Lazy<String> = Lazy::new(|| username().to_string());
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+pub async fn listen() -> Result<TcpListener, Box<dyn Error>> {
+    let ip = get_local_ip();
+    let connetion = TcpListener::bind(format!("{:?}:8080", ip)).await.unwrap();
+    Ok(connetion)
+}
+
+async fn start() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new().init().unwrap();
     let mut stream = TcpStream::connect("localhost:8080").await?;
     stream.write_all(USER.as_bytes()).await?;

@@ -44,9 +44,13 @@ pub fn manage_state(
             }
         }
         ScreenState::TCP => {
-            host.visible = true;
+            connection.visible = false;
+            table.active = false;
             if host.visible {
                 host.render(f);
+            }
+            if connection.logs {
+                connection.draw_connection_progress(f);
             }
             // if connection.input_popup {
             //     connection.draw_input(f, ConnectionType::TCP, input)

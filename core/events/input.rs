@@ -1,3 +1,6 @@
+use futures::executor::block_on;
+use lib_tcp::app::listen;
+
 use crate::core_mod::core::create_config;
 use crate::core_mod::widgets::SelectedItem;
 use crate::core_mod::widgets::TableWidget;
@@ -11,6 +14,7 @@ use crate::screens::popup::InputMode;
 use crate::screens::popup::FLAG;
 use crate::screens::protocol_popup::ConnectionPopup;
 use crate::state::state::ScreenState;
+use crate::utils::poll::poll_future;
 
 pub fn handle_help_key(
     home: &mut Home,
@@ -106,7 +110,6 @@ pub fn handle_right_key(
     } else if connection.visible {
         connection.next();
     } else if host.visible {
-        panic!("Host type popup not implemented");
         host.next();
     }
 }
@@ -137,15 +140,21 @@ pub fn handle_enter_key(
     error: &mut ErrorWidget,
     table: &mut TableWidget,
     connection: &mut ConnectionPopup,
+    host: &mut HostTypePopup,
 ) {
-    match (home.show_popup, table.active, connection.visible) {
-        (true, _, _) => {
+    match (
+        home.show_popup,
+        table.active,
+        connection.visible,
+        host.visible,
+    ) {
+        (true, _, _, _) => {
             home.popup_tx
                 .send((home.selected_button as u16, Some(true)))
                 .unwrap();
             home.show_popup = false;
         }
-        (_, true, _) => {
+        (_, true, _, _) => {
             let selected = table.enter();
             let data_item: Option<&Vec<Data>> = if let Some(SelectedItem::Device(device)) = selected
             {
@@ -176,10 +185,25 @@ pub fn handle_enter_key(
 
             home.current_screen = ScreenState::Transfer;
         }
-        (_, _, true) => {
-            connection.input_popup = true;
+        (_, _, true, _) => {
+            host.visible = true;
             home.current_screen = ScreenState::TCP;
             connection.return_selected();
+        }
+        (_, _, _, true) => {
+            let result = host.return_selected();
+            let instance = poll_future(Box::pin(listen()));
+            if let Ok(listener) = instance {
+                connection.logs = true;
+
+                println!("Listener successfully created: {:?}", listener);
+            } else {
+                connection.logs = false;
+
+                if let Err(err) = instance {
+                    eprintln!("Failed to create listener: {}", err);
+                }
+            }
         }
         _ => match_input_state(home, input_box, error),
     }

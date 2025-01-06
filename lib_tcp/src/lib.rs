@@ -6,3 +6,6 @@ pub mod init;
 
 #[path = "../methods/mod.rs"]
 pub mod methods;
+
+#[path ="../utils/mod.rs"]
+pub mod utils;

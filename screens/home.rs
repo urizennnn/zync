@@ -66,7 +66,7 @@ impl Home {
                     //     connection.return_selected(table);
                     //     return Ok(());
                     // }
-                    handle_enter_key(self, input_box, error, table, connection)
+                    handle_enter_key(self, input_box, error, table, connection, host)
                 }
                 KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
                 KeyCode::Char(c) => handle_char_key(self, c, input_box),
