@@ -1,10 +1,6 @@
 use super::{
-    dashboard::Data, help::help_popup::HelpPopup, host_type::HostTypePopup, popup::ApiPopup,
-    session::Device,
-};
-use crate::core_mod::{
-    core::check_config,
-    widgets::{TableWidget, TableWidgetItemManager},
+    connection_progress::ConnectionProgress, dashboard::Data, help::help_popup::HelpPopup,
+    host_type::HostTypePopup, popup::ApiPopup, session::Device,
 };
 use crate::events::input::{
     handle_backspace_key, handle_char_key, handle_down_arrow, handle_enter_key, handle_esc_key,
@@ -14,6 +10,13 @@ use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
 use crate::state::{manager::manage_state, state::ScreenState};
+use crate::{
+    core_mod::{
+        core::check_config,
+        widgets::{TableWidget, TableWidgetItemManager},
+    },
+    utils::poll::poll_future,
+};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
@@ -77,8 +80,9 @@ impl Home {
         Ok(())
     }
 
-    pub fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
+    pub async fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
         let mut input_box = InputBox::default();
+        let mut progress = ConnectionProgress::new();
         let mut help = HelpPopup::new();
         let mut table = TableWidget::new();
         let mut session_table = Device::new_empty();
@@ -142,16 +146,30 @@ impl Home {
 
             match check_config() {
                 Ok(_) => {
+                    async fn fun_name(
+                        f: &mut ratatui::Frame<'_>,
+                        this: &mut Home,
+                        table: &mut TableWidget,
+                        help: &mut HelpPopup,
+                        connection: &mut ConnectionPopup,
+                        input_box: &mut InputBox,
+                        host: &mut HostTypePopup,
+                        progress: &mut ConnectionProgress,
+                    ) {
+                        manage_state(this, table, f, help, connection, input_box, host, progress)
+                            .await;
+                    }
                     term.lock().unwrap().draw(|f| {
-                        manage_state(
+                        poll_future(Box::pin(fun_name(
+                            f,
                             &mut self,
                             &mut table,
-                            f,
                             &mut help,
                             &mut connection,
                             &mut input_box,
                             &mut host,
-                        )
+                            &mut progress,
+                        )))
                     })?;
                 }
                 Err(_) => {

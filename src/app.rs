@@ -11,7 +11,7 @@ use std::{
 
 use crate::screens::home::Home;
 
-pub fn init_app() -> Result<(), Box<dyn Error>> {
+pub async fn init_app() -> Result<(), Box<dyn Error>> {
     tui_logger::init_logger(log::LevelFilter::Trace)?;
     tui_logger::set_default_level(log::LevelFilter::Info);
 
@@ -70,7 +70,7 @@ pub fn init_app() -> Result<(), Box<dyn Error>> {
 
     // Exit gracefully and restore terminal
     restore_tui()?;
-    app
+    app.await
 }
 
 fn restore_tui() -> io::Result<()> {

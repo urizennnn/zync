@@ -1,6 +1,3 @@
-use futures::executor::block_on;
-use lib_tcp::app::listen;
-
 use crate::core_mod::core::create_config;
 use crate::core_mod::widgets::SelectedItem;
 use crate::core_mod::widgets::TableWidget;
@@ -14,7 +11,6 @@ use crate::screens::popup::InputMode;
 use crate::screens::popup::FLAG;
 use crate::screens::protocol_popup::ConnectionPopup;
 use crate::state::state::ScreenState;
-use crate::utils::poll::poll_future;
 
 pub fn handle_help_key(
     home: &mut Home,
@@ -142,19 +138,14 @@ pub fn handle_enter_key(
     connection: &mut ConnectionPopup,
     host: &mut HostTypePopup,
 ) {
-    match (
-        home.show_popup,
-        table.active,
-        connection.visible,
-        host.visible,
-    ) {
-        (true, _, _, _) => {
+    match (home.show_popup, table.active, connection.visible) {
+        (true, false, false) => {
             home.popup_tx
                 .send((home.selected_button as u16, Some(true)))
                 .unwrap();
             home.show_popup = false;
         }
-        (_, true, _, _) => {
+        (false, true, false) => {
             let selected = table.enter();
             let data_item: Option<&Vec<Data>> = if let Some(SelectedItem::Device(device)) = selected
             {
@@ -185,29 +176,15 @@ pub fn handle_enter_key(
 
             home.current_screen = ScreenState::Transfer;
         }
-        (_, _, true, _) => {
+        (false, false, true) => {
+            connection.logs = true;
             host.visible = true;
-            home.current_screen = ScreenState::TCP;
-            connection.return_selected();
-        }
-        (_, _, _, true) => {
-            let result = host.return_selected();
-            let instance = poll_future(Box::pin(listen()));
-            if let Ok(listener) = instance {
-                connection.logs = true;
-
-                println!("Listener successfully created: {:?}", listener);
-            } else {
-                connection.logs = false;
-
-                if let Err(err) = instance {
-                    eprintln!("Failed to create listener: {}", err);
-                }
-            }
+            home.current_screen = ScreenState::TcpLogs;
         }
         _ => match_input_state(home, input_box, error),
     }
 }
+
 fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut ErrorWidget) {
     match input_box.input_mode == InputMode::Editing {
         true => {
@@ -240,7 +217,8 @@ fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut Erro
         }
     }
 }
-pub fn handle_char_key(_: &mut Home, c: char, input_box: &mut InputBox) {
+
+pub fn handle_char_key(home: &mut Home, c: char, input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.enter_char(c);
     } else if c == 'e' {
@@ -249,19 +227,19 @@ pub fn handle_char_key(_: &mut Home, c: char, input_box: &mut InputBox) {
     }
 }
 
-pub fn handle_up_key(_: &mut Home, table: &mut TableWidget) {
+pub fn handle_up_key(home: &mut Home, table: &mut TableWidget) {
     if !table.help {
         table.previous();
     }
 }
 
-pub fn handle_down_arrow(_: &mut Home, table: &mut TableWidget) {
+pub fn handle_down_arrow(home: &mut Home, table: &mut TableWidget) {
     if !table.help {
         table.next();
     }
 }
 
-pub fn handle_backspace_key(_: &mut Home, input_box: &mut InputBox) {
+pub fn handle_backspace_key(home: &mut Home, input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.delete_char();
     }

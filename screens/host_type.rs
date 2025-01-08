@@ -44,7 +44,7 @@ impl HostTypePopup {
         Self {
             input_popup: false,
             selected: HostType::SENDER,
-            visible: true,
+            visible: false,
         }
     }
 

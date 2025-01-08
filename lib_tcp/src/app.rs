@@ -14,13 +14,17 @@ use whoami::username;
 
 pub static USER: Lazy<String> = Lazy::new(|| username().to_string());
 
-pub async fn listen() -> Result<TcpListener, Box<dyn Error>> {
-    let ip = get_local_ip();
-    let connetion = TcpListener::bind(format!("{:?}:8080", ip)).await.unwrap();
-    Ok(connetion)
+pub async fn listen() -> Result<TcpListener, Box<dyn std::error::Error + Send>> {
+    match TcpListener::bind("0.0.0.0:4239").await {
+        Ok(listener) => Ok(listener),
+        Err(e) => {
+            eprintln!("Failed to bind: {}", e);
+            Err(Box::new(e))
+        }
+    }
 }
 
-async fn start() -> Result<(), Box<dyn Error>> {
+pub async fn start() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new().init().unwrap();
     let mut stream = TcpStream::connect("localhost:8080").await?;
     stream.write_all(USER.as_bytes()).await?;

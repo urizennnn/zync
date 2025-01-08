@@ -1,5 +1,6 @@
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
+#[derive(Debug)]
 pub struct AsyncEvent<T> {
     sender: Sender<T>,
     receiver: Receiver<T>,

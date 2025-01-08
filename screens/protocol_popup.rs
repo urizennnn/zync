@@ -221,34 +221,4 @@ impl ConnectionPopup {
             }
         }
     }
-    pub fn draw_connection_progress(&mut self, f: &mut Frame) {
-        let area = calculate_popup_area(f.area(), 25, 20);
-
-        f.render_widget(Clear, f.area());
-
-        let block = Block::default()
-            .title("Connection Progress")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan));
-
-        f.render_widget(block.clone(), area);
-
-        let inner_area = area.inner(ratatui::layout::Margin {
-            vertical: 1,
-            horizontal: 2,
-        });
-
-        // Render prompt text
-        let text_area = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-            ])
-            .split(inner_area);
-        let paragraph = Paragraph::new("Connecting...").style(Style::default().fg(Color::White));
-        f.render_widget(paragraph, text_area[0]);
-    }
 }

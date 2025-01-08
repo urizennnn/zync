@@ -8,4 +8,11 @@ pub enum ScreenState {
     Help,
     TCP,
     Sessions,
+    TcpLogs,
+}
+#[derive(Clone)]
+pub enum ConnectionState {
+    Connecting,
+    Connected,
+    Failed(String),
 }

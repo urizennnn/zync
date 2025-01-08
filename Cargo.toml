@@ -61,4 +61,5 @@ unicode-width = "0.2.0"
 ## workspace
 lib_tcp = { path = "lib_tcp" }
 futures = "0.3.31"
+mio = "1.0.3"
 
