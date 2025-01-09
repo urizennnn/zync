@@ -1,4 +1,4 @@
-use lib_tcp::app::listen;
+use lib_tcp::{app::listen, methods::list};
 use ratatui::Frame;
 
 use crate::{
@@ -10,18 +10,18 @@ use crate::{
     },
 };
 
-use super::state::ScreenState;
+use super::state::{ScreenState, StateSnapshot};
 
-pub async fn manage_state(
-    home: &mut Home,
-    table: &mut TableWidget,
-    f: &mut Frame<'_>,
-    help: &mut HelpPopup,
-    connection: &mut ConnectionPopup,
-    input: &mut InputBox,
-    host: &mut HostTypePopup,
-    progress: &mut ConnectionProgress,
-) {
+pub async fn manage_state(state: &mut StateSnapshot<'_>, f: &mut Frame<'_>) {
+    let StateSnapshot {
+        home,
+        table,
+        help,
+        connection,
+        host,
+        progress,
+        input_box,
+    } = state;
     match home.current_screen {
         ScreenState::Sessions => {
             draw_session_table_ui(f, table, home);
@@ -54,7 +54,7 @@ pub async fn manage_state(
         ScreenState::TcpLogs => {
             if connection.logs {
                 progress.draw(f);
-                tokio::spawn(listen()).await;
+                listen().await;
             }
         }
         _ => {}

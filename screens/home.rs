@@ -10,14 +10,15 @@ use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
 use crate::state::{manager::manage_state, state::ScreenState};
+use crate::utils::poll::poll_future;
 use crate::{
     core_mod::{
         core::check_config,
         widgets::{TableWidget, TableWidgetItemManager},
     },
-    utils::poll::poll_future,
+    state::state::StateSnapshot,
 };
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{Event, KeyCode};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style},
@@ -29,9 +30,12 @@ use std::{
     error::Error,
     io,
     sync::{mpsc, Arc, Mutex},
+    time::Duration,
 };
+use tokio::sync::mpsc::Receiver;
 use tui_big_text::{BigText, BigTextBuilder};
 use tui_confirm_dialog::{ConfirmDialogState, Listener};
+
 pub struct Home {
     pub running: bool,
     pub show_popup: bool,
@@ -47,15 +51,16 @@ pub struct Home {
 }
 
 impl Home {
-    pub fn handle_events(
+    async fn handle_event(
         &mut self,
+        event: Event,
         input_box: &mut InputBox,
         table: &mut TableWidget,
         connection: &mut ConnectionPopup,
         error: &mut ErrorWidget,
         host: &mut HostTypePopup,
     ) -> io::Result<()> {
-        if let Event::Key(key) = event::read()? {
+        if let Event::Key(key) = event {
             match key.code {
                 KeyCode::Char('q') => handle_q_key(self, input_box, connection),
                 KeyCode::Char('n') => handle_n_key(self, 'n', input_box, connection),
@@ -64,13 +69,7 @@ impl Home {
                 KeyCode::Esc => handle_esc_key(self, input_box),
                 KeyCode::Right => handle_right_key(self, input_box, connection, host),
                 KeyCode::Left => handle_left_key(self, input_box, connection, host),
-                KeyCode::Enter => {
-                    // if table.connection {
-                    //     connection.return_selected(table);
-                    //     return Ok(());
-                    // }
-                    handle_enter_key(self, input_box, error, table, connection, host)
-                }
+                KeyCode::Enter => handle_enter_key(self, input_box, error, table, connection, host),
                 KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
                 KeyCode::Char(c) => handle_char_key(self, c, input_box),
                 KeyCode::Backspace => handle_backspace_key(self, input_box),
@@ -80,11 +79,21 @@ impl Home {
         Ok(())
     }
 
-    pub async fn run(mut self, term: Arc<Mutex<DefaultTerminal>>) -> Result<(), Box<dyn Error>> {
+    pub async fn run(
+        mut self,
+        term: Arc<Mutex<DefaultTerminal>>,
+        mut event_rx: Receiver<Event>,
+    ) -> Result<(), Box<dyn Error>> {
         let mut input_box = InputBox::default();
         let mut progress = ConnectionProgress::new();
         let mut help = HelpPopup::new();
         let mut table = TableWidget::new();
+        let mut connection = ConnectionPopup::new();
+        let mut api_popup = ApiPopup::new();
+        let mut error = ErrorWidget::new();
+        let mut host = HostTypePopup::new();
+
+        // Initialize session table with sample data
         let mut session_table = Device::new_empty();
         session_table.add_item(
             Device {
@@ -122,11 +131,9 @@ impl Home {
             },
             &mut table,
         );
-        let mut connection = ConnectionPopup::new();
-        let mut api_popup = ApiPopup::new();
-        let mut error = ErrorWidget::new();
-        let mut host = HostTypePopup::new();
+
         while self.running {
+            // Handle popup dialog messages
             if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
                 match confirmed {
                     Some(true) => {
@@ -144,33 +151,22 @@ impl Home {
                 }
             }
 
+            // Draw UI based on config state
             match check_config() {
                 Ok(_) => {
-                    async fn fun_name(
-                        f: &mut ratatui::Frame<'_>,
-                        this: &mut Home,
-                        table: &mut TableWidget,
-                        help: &mut HelpPopup,
-                        connection: &mut ConnectionPopup,
-                        input_box: &mut InputBox,
-                        host: &mut HostTypePopup,
-                        progress: &mut ConnectionProgress,
-                    ) {
-                        manage_state(this, table, f, help, connection, input_box, host, progress)
-                            .await;
-                    }
-                    term.lock().unwrap().draw(|f| {
-                        poll_future(Box::pin(fun_name(
-                            f,
-                            &mut self,
-                            &mut table,
-                            &mut help,
-                            &mut connection,
-                            &mut input_box,
-                            &mut host,
-                            &mut progress,
-                        )))
-                    })?;
+                    let mut state_snapshot = StateSnapshot {
+                        home: &mut self,
+                        table: &mut table,
+                        help: &mut help,
+                        connection: &mut connection,
+                        input_box: &mut input_box,
+                        host: &mut host,
+                        progress: &mut progress,
+                    };
+
+                    term.lock()
+                        .unwrap()
+                        .draw(|f| poll_future(Box::pin(manage_state(&mut state_snapshot, f))))?;
                 }
                 Err(_) => {
                     term.lock().unwrap().draw(|f| {
@@ -191,17 +187,27 @@ impl Home {
                     })?;
                 }
             }
-            self.handle_events(
-                &mut input_box,
-                &mut table,
-                &mut connection,
-                &mut error,
-                &mut host,
-            )?;
+
+            // Handle events with timeout
+            tokio::select! {
+                Some(event) = event_rx.recv() => {
+                    self.handle_event(
+                        event,
+                        &mut input_box,
+                        &mut table,
+                        &mut connection,
+                        &mut error,
+                        &mut host,
+                    ).await?;
+                }
+                _ = tokio::time::sleep(Duration::from_millis(50)) => {}
+            }
         }
+
         Ok(())
     }
 
+    // ... Rest of your existing methods remain the same ...
     fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
         let text = BigTextBuilder::default()
             .pixel_size(tui_big_text::PixelSize::Quadrant)
@@ -277,7 +283,6 @@ impl Default for Home {
         Self::new()
     }
 }
-
 impl Widget for &Home {
     fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
         let layout = Layout::default()
