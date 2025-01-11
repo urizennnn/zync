@@ -1,13 +1,11 @@
 use crate::init::{init, update_init};
 use crate::methods::{get::receive_files, list::list, upload::upload};
-use crate::utils::get_ip::{self, get_local_ip, get_public_ip};
 
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
-use simple_logger::SimpleLogger;
 use std::{
     error::Error,
-    io::{self, BufRead, Write},
+    io::{self, BufRead},
 };
 use tokio::{io::AsyncReadExt, io::AsyncWriteExt, net::TcpListener, net::TcpStream};
 use whoami::username;
@@ -25,19 +23,15 @@ pub async fn listen() -> Result<TcpListener, Box<dyn std::error::Error + Send>> 
 }
 
 pub async fn start() -> Result<(), Box<dyn Error>> {
-    SimpleLogger::new().init().unwrap();
-    let mut stream = TcpStream::connect("localhost:8080").await?;
+    let mut stream = TcpStream::connect("localhost:8080").await.unwrap();
     stream.write_all(USER.as_bytes()).await?;
     stream.flush().await?;
+
     info!("Connected to server");
     init().await?;
     let mut buffer = vec![0; 5_242_880];
 
     loop {
-        print!(
-            "Enter command (LIST, GET <filename>, PUT <filename>, DELETE <filename>, or EXIT): "
-        );
-        io::stdout().flush()?;
         let mut input = String::new();
         io::stdin().lock().read_line(&mut input)?;
         let input = input.trim().to_string();

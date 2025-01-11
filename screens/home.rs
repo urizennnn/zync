@@ -9,6 +9,7 @@ use crate::events::input::{
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
+use crate::state::state::ConnectionState;
 use crate::state::{manager::manage_state, state::ScreenState};
 use crate::utils::poll::poll_future;
 use crate::{

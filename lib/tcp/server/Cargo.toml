@@ -1,25 +1,18 @@
 [package]
-name = "lib_tcp"
+name = "tcp_server"
 description = "A library to house the core tcp logic"
 authors = ["urizennnn"]
 license = "MIT"
 edition="2021"
 
-
 [lib]
-name ="lib_tcp"
+name = "tcp_server"
 path = "src/lib.rs"
 
 [dependencies]
+bytes = "1.6.1"
+cargo-watch = "8.5.2"
 log.workspace = true
 serde.workspace = true
 tokio.workspace = true
-whoami.workspace = true
-once_cell.workspace = true
-serde_json.workspace = true
-dirs.workspace = true
-reqwest.workspace = true
-chrono = "0.4.39"
-simple_logger = "5.0.0"
-
-
+serde_json.workspace= true 

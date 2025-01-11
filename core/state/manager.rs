@@ -1,5 +1,5 @@
-use lib_tcp::{app::listen, methods::list};
 use ratatui::Frame;
+use tcp_client::app::listen;
 
 use crate::{
     core_mod::widgets::TableWidget,

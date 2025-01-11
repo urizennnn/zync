@@ -10,8 +10,9 @@ edition = "2021"
 
 [workspace]
 members = [
-	"./lib_tcp/"
-, "lib_p2p"]
+	"./lib/tcp/server/",
+	"./lib/tcp/client/"
+, "./lib/p2p/"]
 
 [lib]
 path = "src/lib.rs"
@@ -57,9 +58,8 @@ tui-logger = "0.14.0"
 tui-textarea = "0.7.0"
 tui_confirm_dialog = "0.2.4"
 unicode-width = "0.2.0"
+futures = "0.3.31"
 
 ## workspace
-lib_tcp = { path = "lib_tcp" }
-futures = "0.3.31"
-mio = "1.0.3"
-
+tcp_server = { path = "./lib/tcp/server/" }
+tcp_client = { path = "./lib/tcp/client/" }
