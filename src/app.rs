@@ -1,3 +1,4 @@
+use crate::screens::home::Home;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -6,12 +7,11 @@ use std::{
     error::Error,
     io::{self, stdout},
     panic::take_hook,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
-
-use crate::screens::home::Home;
 use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 
 pub async fn init_app() -> Result<(), Box<dyn Error>> {
     tui_logger::init_logger(log::LevelFilter::Trace)?;
@@ -77,7 +77,7 @@ pub async fn init_app() -> Result<(), Box<dyn Error>> {
     let app_result = Home::default().run(backend.clone(), event_rx).await;
 
     event_handle.abort();
-    let res = backend.lock().unwrap().show_cursor();
+    let res = backend.lock().await.show_cursor();
     if let Err(err) = res {
         let error_message = format!("App panicked out: {:?}", err);
         restore_tui()?;

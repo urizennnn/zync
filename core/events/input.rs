@@ -5,11 +5,13 @@ use crate::screens::dashboard::Data;
 use crate::screens::error::error_widget::ErrorType;
 use crate::screens::error::error_widget::ErrorWidget;
 use crate::screens::home::Home;
+use crate::screens::host_type;
 use crate::screens::host_type::HostTypePopup;
 use crate::screens::popup::InputBox;
 use crate::screens::popup::InputMode;
 use crate::screens::popup::FLAG;
 use crate::screens::protocol_popup::ConnectionPopup;
+use crate::screens::protocol_popup::ConnectionType;
 use crate::state::state::ScreenState;
 
 pub fn handle_help_key(
@@ -138,14 +140,19 @@ pub fn handle_enter_key(
     connection: &mut ConnectionPopup,
     host: &mut HostTypePopup,
 ) {
-    match (home.show_popup, table.active, connection.visible) {
-        (true, false, false) => {
+    match (
+        home.show_popup,
+        table.active,
+        connection.visible,
+        host.visible,
+    ) {
+        (true, false, false, false) => {
             home.popup_tx
                 .send((home.selected_button as u16, Some(true)))
                 .unwrap();
             home.show_popup = false;
         }
-        (false, true, false) => {
+        (false, true, false, false) => {
             let selected = table.enter();
             let data_item: Option<&Vec<Data>> = if let Some(SelectedItem::Device(device)) = selected
             {
@@ -176,10 +183,27 @@ pub fn handle_enter_key(
 
             home.current_screen = ScreenState::Transfer;
         }
-        (false, false, true) => {
-            connection.logs = true;
-            host.visible = true;
-            home.current_screen = ScreenState::TcpLogs;
+        (false, false, true, false) => {
+            let selected = connection.return_selected();
+            if selected == ConnectionType::TCP {
+                connection.input_popup = true;
+                connection.visible = false;
+                host.visible = true;
+                home.current_screen = ScreenState::TCP;
+            }
+        }
+        (false, false, false, true) => {
+            let selected = host.return_selected();
+            if selected == host_type::HostType::SENDER {
+                connection.logs = true;
+
+                home.current_screen = ScreenState::TcpServer;
+            } else {
+                connection.input_popup = true;
+                connection.visible = false;
+                host.visible = false;
+                home.current_screen = ScreenState::TcpClient;
+            }
         }
         _ => match_input_state(home, input_box, error),
     }

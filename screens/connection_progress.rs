@@ -15,6 +15,12 @@ pub struct ConnectionProgress {
     event: AsyncEvent<ConnectionState>,
 }
 
+impl Default for ConnectionProgress {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionProgress {
     pub fn new() -> Self {
         Self {
@@ -55,7 +61,6 @@ impl ConnectionProgress {
             ])
             .split(inner_area);
 
-        // Explicitly type annotate the tuple
         let (message, style): (&str, Style) = match &self.state {
             ConnectionState::Connecting => (
                 "Connecting to server...",

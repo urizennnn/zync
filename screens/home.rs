@@ -9,9 +9,9 @@ use crate::events::input::{
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
-use crate::state::state::ConnectionState;
 use crate::state::{manager::manage_state, state::ScreenState};
 use crate::utils::poll::poll_future;
+use crate::utils::reset_state::StateReset;
 use crate::{
     core_mod::{
         core::check_config,
@@ -19,6 +19,7 @@ use crate::{
     },
     state::state::StateSnapshot,
 };
+use core::panic;
 use crossterm::event::{Event, KeyCode};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
@@ -30,10 +31,11 @@ use ratatui::{
 use std::{
     error::Error,
     io,
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc},
     time::Duration,
 };
 use tokio::sync::mpsc::Receiver;
+use tokio::sync::Mutex;
 use tui_big_text::{BigText, BigTextBuilder};
 use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
@@ -86,15 +88,15 @@ impl Home {
         mut event_rx: Receiver<Event>,
     ) -> Result<(), Box<dyn Error>> {
         let mut input_box = InputBox::default();
-        let mut progress = ConnectionProgress::new();
+        let mut progress = Arc::new(Mutex::new(ConnectionProgress::default()));
         let mut help = HelpPopup::new();
         let mut table = TableWidget::new();
         let mut connection = ConnectionPopup::new();
         let mut api_popup = ApiPopup::new();
         let mut error = ErrorWidget::new();
         let mut host = HostTypePopup::new();
+        let mut state_handler_reset = StateReset::default();
 
-        // Initialize session table with sample data
         let mut session_table = Device::new_empty();
         session_table.add_item(
             Device {
@@ -134,7 +136,6 @@ impl Home {
         );
 
         while self.running {
-            // Handle popup dialog messages
             if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
                 match confirmed {
                     Some(true) => {
@@ -153,6 +154,7 @@ impl Home {
             }
 
             // Draw UI based on config state
+
             match check_config() {
                 Ok(_) => {
                     let mut state_snapshot = StateSnapshot {
@@ -166,11 +168,11 @@ impl Home {
                     };
 
                     term.lock()
-                        .unwrap()
+                        .await
                         .draw(|f| poll_future(Box::pin(manage_state(&mut state_snapshot, f))))?;
                 }
                 Err(_) => {
-                    term.lock().unwrap().draw(|f| {
+                    term.lock().await.draw(|f| {
                         let area = f.area();
                         self.render(area, f.buffer_mut());
                         if self.show_popup {

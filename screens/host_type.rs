@@ -9,7 +9,7 @@ use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
 use crate::utils::calculate::centered_rect;
 
-#[derive(Debug, Clone, Copy, FromRepr, Display, EnumIter)]
+#[derive(Debug, Clone, Copy, FromRepr, Display, EnumIter, PartialEq)]
 #[repr(usize)]
 pub enum HostType {
     SENDER,

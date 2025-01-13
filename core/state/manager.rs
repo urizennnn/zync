@@ -1,14 +1,6 @@
 use ratatui::Frame;
-use tcp_client::app::listen;
 
-use crate::{
-    core_mod::widgets::TableWidget,
-    screens::{
-        connection_progress::ConnectionProgress, dashboard::table_ui, help::help_popup::HelpPopup,
-        home::Home, host_type::HostTypePopup, popup::InputBox, protocol_popup::ConnectionPopup,
-        session::draw_session_table_ui,
-    },
-};
+use crate::screens::{dashboard::table_ui, session::draw_session_table_ui};
 
 use super::state::{ScreenState, StateSnapshot};
 
@@ -22,6 +14,12 @@ pub async fn manage_state(state: &mut StateSnapshot<'_>, f: &mut Frame<'_>) {
         progress,
         input_box,
     } = state;
+
+    let progress_ref = progress.clone();
+    tokio::spawn(async move {
+        let mut guard = progress_ref.lock().await;
+        guard.update().await;
+    });
     match home.current_screen {
         ScreenState::Sessions => {
             draw_session_table_ui(f, table, home);
@@ -47,14 +45,20 @@ pub async fn manage_state(state: &mut StateSnapshot<'_>, f: &mut Frame<'_>) {
             if host.visible {
                 host.render(f);
             }
-            // if connection.input_popup {
-            //     connection.draw_input(f, ConnectionType::TCP, input)
-            // }
         }
-        ScreenState::TcpLogs => {
+        ScreenState::TcpServer => {
             if connection.logs {
-                progress.draw(f);
-                listen().await;
+                let progress_ref = progress.clone();
+                tokio::spawn(async move {
+                    let mut guard = progress_ref.lock().await;
+                    guard.update().await;
+                });
+            }
+        }
+        ScreenState::TcpClient => {
+            connection.input_popup = true;
+            if connection.input_popup {
+                connection.draw_input(f, connection.returned_val, input_box)
             }
         }
         _ => {}
