@@ -32,7 +32,6 @@ use std::{
     error::Error,
     io,
     sync::{mpsc, Arc},
-    time::Duration,
 };
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::Mutex;
@@ -62,6 +61,7 @@ impl Home {
         connection: &mut ConnectionPopup,
         error: &mut ErrorWidget,
         host: &mut HostTypePopup,
+        reset: &mut StateReset,
     ) -> io::Result<()> {
         if let Event::Key(key) = event {
             match key.code {
@@ -72,7 +72,9 @@ impl Home {
                 KeyCode::Esc => handle_esc_key(self, input_box),
                 KeyCode::Right => handle_right_key(self, input_box, connection, host),
                 KeyCode::Left => handle_left_key(self, input_box, connection, host),
-                KeyCode::Enter => handle_enter_key(self, input_box, error, table, connection, host),
+                KeyCode::Enter => {
+                    handle_enter_key(self, input_box, error, table, connection, host, reset)
+                }
                 KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
                 KeyCode::Char(c) => handle_char_key(self, c, input_box),
                 KeyCode::Backspace => handle_backspace_key(self, input_box),
@@ -191,7 +193,6 @@ impl Home {
                 }
             }
 
-            // Handle events with timeout
             tokio::select! {
                 Some(event) = event_rx.recv() => {
                     self.handle_event(
@@ -201,9 +202,9 @@ impl Home {
                         &mut connection,
                         &mut error,
                         &mut host,
+                        &mut state_handler_reset,
                     ).await?;
                 }
-                _ = tokio::time::sleep(Duration::from_millis(50)) => {}
             }
         }
 

@@ -13,6 +13,7 @@ use crate::screens::popup::FLAG;
 use crate::screens::protocol_popup::ConnectionPopup;
 use crate::screens::protocol_popup::ConnectionType;
 use crate::state::state::ScreenState;
+use crate::utils::reset_state::StateReset;
 
 pub fn handle_help_key(
     home: &mut Home,
@@ -139,6 +140,7 @@ pub fn handle_enter_key(
     table: &mut TableWidget,
     connection: &mut ConnectionPopup,
     host: &mut HostTypePopup,
+    rest: &mut StateReset,
 ) {
     match (
         home.show_popup,
@@ -197,6 +199,8 @@ pub fn handle_enter_key(
             if selected == host_type::HostType::SENDER {
                 connection.logs = true;
 
+                connection.visible = false;
+                host.visible = false;
                 home.current_screen = ScreenState::TcpServer;
             } else {
                 connection.input_popup = true;

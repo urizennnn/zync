@@ -1,10 +1,15 @@
+use std::ops::DerefMut;
+use std::sync::Arc;
+
+use futures::lock::Mutex;
 use ratatui::Frame;
 
 use crate::screens::{dashboard::table_ui, session::draw_session_table_ui};
 
 use super::state::{ScreenState, StateSnapshot};
 
-pub async fn manage_state(state: &mut StateSnapshot<'_>, f: &mut Frame<'_>) {
+// FIX: make frame be wrapped in arc<mutex<T>>
+pub async fn manage_state(state: &mut StateSnapshot<'static>, f: &mut Frame<'static>) {
     let StateSnapshot {
         home,
         table,
@@ -15,51 +20,83 @@ pub async fn manage_state(state: &mut StateSnapshot<'_>, f: &mut Frame<'_>) {
         input_box,
     } = state;
 
+    // Wrap the frame in a mutex for shared access
+    let f_mutex = Arc::new(Mutex::new(f));
+
+    // Spawn an async task to update progress
     let progress_ref = progress.clone();
     tokio::spawn(async move {
-        let mut guard = progress_ref.lock().await;
-        guard.update().await;
+        let mut progress_guard = progress_ref.lock().await;
+        progress_guard.update().await;
     });
+
     match home.current_screen {
         ScreenState::Sessions => {
-            draw_session_table_ui(f, table, home);
-            if table.help {
-                help.draw_dashboard_help(f);
-            }
+            let f_mutex_clone = Arc::clone(&f_mutex);
+            tokio::spawn(async move {
+                let mut frame_guard = f_mutex_clone.lock().await;
+                let frame: &mut ratatui::Frame<'_> = frame_guard.deref_mut();
+                draw_session_table_ui(frame, table, home);
+                if table.help {
+                    help.draw_dashboard_help(frame);
+                }
+            });
         }
         ScreenState::Transfer => {
-            table_ui(f, table);
-            if table.help {
-                help.draw_dashboard_help(f);
-            }
+            let f_mutex_clone = Arc::clone(&f_mutex);
+            tokio::spawn(async move {
+                let mut frame_guard = f_mutex_clone.lock().await;
+                let frame: &mut ratatui::Frame<'_> = frame_guard.deref_mut();
+                table_ui(frame, table);
+                if table.help {
+                    help.draw_dashboard_help(frame);
+                }
+            });
         }
         ScreenState::Connection => {
-            table.active = false;
-            if connection.visible {
-                connection.render(f);
-            }
+            let f_mutex_clone = Arc::clone(&f_mutex);
+            tokio::spawn(async move {
+                let mut frame_guard = f_mutex_clone.lock().await;
+                let frame: &mut ratatui::Frame<'_> = frame_guard.deref_mut();
+                table.active = false;
+                if connection.visible {
+                    connection.render(frame);
+                }
+            });
         }
         ScreenState::TCP => {
-            connection.visible = false;
-            table.active = false;
-            if host.visible {
-                host.render(f);
-            }
+            let f_mutex_clone = Arc::clone(&f_mutex);
+            tokio::spawn(async move {
+                let mut frame_guard = f_mutex_clone.lock().await;
+                let frame: &mut ratatui::Frame<'_> = frame_guard.deref_mut();
+                connection.visible = false;
+                table.active = false;
+                if host.visible {
+                    host.render(frame);
+                }
+            });
         }
         ScreenState::TcpServer => {
+            let progress_ref = progress.clone();
+            let f_mutex_clone = Arc::clone(&f_mutex);
             if connection.logs {
-                let progress_ref = progress.clone();
                 tokio::spawn(async move {
-                    let mut guard = progress_ref.lock().await;
-                    guard.update().await;
+                    let mut progress_guard = progress_ref.lock().await;
+                    let mut frame_guard = f_mutex_clone.lock().await;
+                    let frame: &mut ratatui::Frame<'_> = frame_guard.deref_mut();
+                    progress_guard.draw(frame);
                 });
             }
         }
         ScreenState::TcpClient => {
-            connection.input_popup = true;
-            if connection.input_popup {
-                connection.draw_input(f, connection.returned_val, input_box)
-            }
+            let f_mutex_clone = Arc::clone(&f_mutex);
+            tokio::spawn(async move {
+                let mut frame_guard = f_mutex_clone.lock().await;
+                let frame: &mut ratatui::Frame<'_> = frame_guard.deref_mut();
+                if connection.input_popup {
+                    connection.draw_input(frame, connection.returned_val, input_box);
+                }
+            });
         }
         _ => {}
     }
