@@ -21,12 +21,13 @@ use crate::{
 };
 use core::panic;
 use crossterm::event::{Event, KeyCode};
+use futures::lock::Mutex;
 use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
-    DefaultTerminal,
+    DefaultTerminal, Frame,
 };
 use std::{
     error::Error,
@@ -34,7 +35,6 @@ use std::{
     sync::{mpsc, Arc},
 };
 use tokio::sync::mpsc::Receiver;
-use tokio::sync::Mutex;
 use tui_big_text::{BigText, BigTextBuilder};
 use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
@@ -85,7 +85,7 @@ impl Home {
     }
 
     pub async fn run(
-        mut self,
+        &mut self,
         term: Arc<Mutex<DefaultTerminal>>,
         mut event_rx: Receiver<Event>,
     ) -> Result<(), Box<dyn Error>> {
@@ -99,79 +99,39 @@ impl Home {
         let mut host = HostTypePopup::new();
         let mut state_handler_reset = StateReset::default();
 
-        let mut session_table = Device::new_empty();
-        session_table.add_item(
-            Device {
-                files: Some(vec![
-                    Data {
-                        name: "File 1".to_string(),
-                        status: Line::from(Span::styled(
-                            "Not Sent",
-                            Style::default().fg(ratatui::style::Color::Red),
-                        )),
-                        destination: "Urizen".to_string(),
-                        time: "Just now".to_string(),
-                    },
-                    Data {
-                        name: "File 2".to_string(),
-                        status: Line::from(Span::styled(
-                            "Sending",
-                            Style::default().fg(ratatui::style::Color::Yellow),
-                        )),
-                        destination: "Urizen".to_string(),
-                        time: "10 mins ago".to_string(),
-                    },
-                ]),
-                name: "Urizen".to_string(),
-                last_connection: super::session::Connection {
-                    total: "Just now".to_string(),
-                    format_date: "Just now".to_string(),
-                },
-                last_transfer: super::session::Transfer {
-                    status: "Not Sent".to_string(),
-                    size: "Not Sent".to_string(),
-                    name: "File 1".to_string(),
-                },
-                ip: "".to_string(),
-            },
-            &mut table,
-        );
-
         while self.running {
-            if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
-                match confirmed {
-                    Some(true) => {
-                        if selected_button == 0 {
-                            self.show_api_popup = true;
-                        } else {
-                            self.render_url_popup = true;
+            // Handle popup events in a separate scope to limit borrow duration
+            {
+                if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
+                    match confirmed {
+                        Some(true) => {
+                            self.show_api_popup = selected_button == 0;
+                            self.render_url_popup = selected_button != 0;
+                            self.show_popup = false;
                         }
-                        self.show_popup = false;
+                        Some(false) => {
+                            self.show_popup = false;
+                        }
+                        None => {}
                     }
-                    Some(false) => {
-                        self.show_popup = false;
-                    }
-                    None => {}
                 }
             }
 
-            // Draw UI based on config state
-
             match check_config() {
                 Ok(_) => {
-                    let mut state_snapshot = StateSnapshot {
-                        home: &mut self,
-                        table: &mut table,
-                        help: &mut help,
-                        connection: &mut connection,
-                        input_box: &mut input_box,
-                        host: &mut host,
-                        progress: &mut progress,
-                    };
+                    term.lock().await.draw(|f| {
+                        let state_snapshot = StateSnapshot {
+                            home: self,
+                            table: &mut table,
+                            help: &mut help,
+                            connection: &mut connection,
+                            input_box: &mut input_box,
+                            host: &mut host,
+                            progress: &mut progress,
+                        };
 
-                    term.lock()
-                        .await
-                        .draw(|f| poll_future(Box::pin(manage_state(&mut state_snapshot, f))))?;
+                        poll_future(Box::pin(manage_state(state_snapshot, f)))
+                    })?;
                 }
                 Err(_) => {
                     term.lock().await.draw(|f| {
@@ -193,25 +153,23 @@ impl Home {
                 }
             }
 
-            tokio::select! {
-                Some(event) = event_rx.recv() => {
-                    self.handle_event(
-                        event,
-                        &mut input_box,
-                        &mut table,
-                        &mut connection,
-                        &mut error,
-                        &mut host,
-                        &mut state_handler_reset,
-                    ).await?;
-                }
+            if let Some(event) = event_rx.recv().await {
+                self.handle_event(
+                    event,
+                    &mut input_box,
+                    &mut table,
+                    &mut connection,
+                    &mut error,
+                    &mut host,
+                    &mut state_handler_reset,
+                )
+                .await?;
             }
         }
 
         Ok(())
     }
 
-    // ... Rest of your existing methods remain the same ...
     fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
         let text = BigTextBuilder::default()
             .pixel_size(tui_big_text::PixelSize::Quadrant)

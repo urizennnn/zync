@@ -11,8 +11,8 @@ use std::{
     time::Duration,
 };
 use tokio::sync::mpsc;
-use tokio::sync::Mutex;
 
+use futures::lock::Mutex;
 pub async fn init_app() -> Result<(), Box<dyn Error>> {
     tui_logger::init_logger(log::LevelFilter::Trace)?;
     tui_logger::set_default_level(log::LevelFilter::Info);

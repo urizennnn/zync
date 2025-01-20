@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use tokio::sync::Mutex;
+use futures::lock::Mutex;
 
 use crate::{
     core_mod::widgets::TableWidget,
@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
 pub enum ScreenState {
     Home,
     Popup,
