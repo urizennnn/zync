@@ -1,6 +1,6 @@
 use super::{
-    connection_progress::ConnectionProgress, dashboard::Data, help::help_popup::HelpPopup,
-    host_type::HostTypePopup, popup::ApiPopup, session::Device,
+    connection_progress::ConnectionProgress, help::help_popup::HelpPopup, host_type::HostTypePopup,
+    popup::ApiPopup,
 };
 use crate::events::input::{
     handle_backspace_key, handle_char_key, handle_down_arrow, handle_enter_key, handle_esc_key,
@@ -13,13 +13,9 @@ use crate::state::{manager::manage_state, state::ScreenState};
 use crate::utils::poll::poll_future;
 use crate::utils::reset_state::StateReset;
 use crate::{
-    core_mod::{
-        core::check_config,
-        widgets::{TableWidget, TableWidgetItemManager},
-    },
+    core_mod::{core::check_config, widgets::TableWidget},
     state::state::StateSnapshot,
 };
-use core::panic;
 use crossterm::event::{Event, KeyCode};
 use futures::lock::Mutex;
 use ratatui::{
@@ -27,7 +23,7 @@ use ratatui::{
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
-    DefaultTerminal, Frame,
+    DefaultTerminal,
 };
 use std::{
     error::Error,
@@ -67,8 +63,8 @@ impl Home {
             match key.code {
                 KeyCode::Char('q') => handle_q_key(self, input_box, connection),
                 KeyCode::Char('n') => handle_n_key(self, 'n', input_box, connection),
-                KeyCode::Down => handle_down_arrow(self, table),
-                KeyCode::Up => handle_up_key(self, table),
+                KeyCode::Down => handle_down_arrow(table),
+                KeyCode::Up => handle_up_key(table),
                 KeyCode::Esc => handle_esc_key(self, input_box),
                 KeyCode::Right => handle_right_key(self, input_box, connection, host),
                 KeyCode::Left => handle_left_key(self, input_box, connection, host),
@@ -76,8 +72,8 @@ impl Home {
                     handle_enter_key(self, input_box, error, table, connection, host, reset)
                 }
                 KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
-                KeyCode::Char(c) => handle_char_key(self, c, input_box),
-                KeyCode::Backspace => handle_backspace_key(self, input_box),
+                KeyCode::Char(c) => handle_char_key(c, input_box),
+                KeyCode::Backspace => handle_backspace_key(input_box),
                 _ => {}
             }
         }
@@ -119,19 +115,20 @@ impl Home {
 
             match check_config() {
                 Ok(_) => {
-                    term.lock().await.draw(|f| {
-                        let state_snapshot = StateSnapshot {
-                            home: self,
-                            table: &mut table,
-                            help: &mut help,
-                            connection: &mut connection,
-                            input_box: &mut input_box,
-                            host: &mut host,
-                            progress: &mut progress,
-                        };
+                    let state_snapshot = Arc::new(Mutex::new(StateSnapshot {
+                        table: &mut table,
+                        help: &mut help,
+                        connection: &mut connection,
+                        input_box: &mut input_box,
+                        host: &mut host,
+                        progress: &mut progress,
+                    }));
 
-                        poll_future(Box::pin(manage_state(state_snapshot, f)))
-                    })?;
+                    poll_future(Box::pin(manage_state(
+                        self,
+                        state_snapshot,
+                        Arc::clone(&term),
+                    )))?;
                 }
                 Err(_) => {
                     term.lock().await.draw(|f| {

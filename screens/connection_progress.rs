@@ -10,6 +10,7 @@ use ratatui::{
     Frame,
 };
 
+#[derive(Debug)]
 pub struct ConnectionProgress {
     state: ConnectionState,
     event: AsyncEvent<ConnectionState>,

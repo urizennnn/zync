@@ -1,56 +1,67 @@
 use super::state::{ScreenState, StateSnapshot};
-use crate::screens::{dashboard::table_ui, session::draw_session_table_ui};
-use ratatui::Frame;
+use crate::{
+    screens::{dashboard::table_ui, home::Home, session::draw_session_table_ui},
+    utils::poll::poll_future,
+};
+use futures::lock::Mutex;
+use ratatui::DefaultTerminal;
+use std::sync::Arc;
 
-pub async fn manage_state<'a>(mut state_snapshot: StateSnapshot<'a>, frame: &mut Frame<'_>) {
-    // Update progress
-    {
-        let mut progress_guard = state_snapshot.progress.lock().await;
-        progress_guard.update().await;
-    }
+pub async fn manage_state(
+    home: &mut Home,
+    state_snapshot: Arc<Mutex<StateSnapshot<'_>>>,
+    term: Arc<Mutex<DefaultTerminal>>,
+) -> Result<(), std::io::Error> {
+    let progress = Arc::clone(state_snapshot.lock().await.progress);
 
-    // Get current screen state
-    let current_screen = state_snapshot.home.current_screen.clone();
+    tokio::spawn(async move {
+        let mut progress = progress.lock().await;
+        progress.update().await;
+    });
 
-    match current_screen {
+    let mut state_guard = state_snapshot.lock().await;
+
+    term.lock().await.draw(|frame| match home.current_screen {
         ScreenState::Sessions => {
-            draw_session_table_ui(frame, state_snapshot.table, state_snapshot.home);
-            if state_snapshot.table.help {
-                state_snapshot.help.draw_dashboard_help(frame);
+            draw_session_table_ui(frame, state_guard.table);
+            if state_guard.table.help {
+                state_guard.help.draw_dashboard_help(frame);
             }
         }
         ScreenState::Transfer => {
-            table_ui(frame, state_snapshot.table);
-            if state_snapshot.table.help {
-                state_snapshot.help.draw_dashboard_help(frame);
+            table_ui(frame, state_guard.table);
+            if state_guard.table.help {
+                state_guard.help.draw_dashboard_help(frame);
             }
         }
         ScreenState::Connection => {
-            state_snapshot.table.active = false;
-            if state_snapshot.connection.visible {
-                state_snapshot.connection.render(frame);
+            state_guard.table.active = false;
+            if state_guard.connection.visible {
+                state_guard.connection.render(frame);
             }
         }
         ScreenState::TCP => {
-            state_snapshot.connection.visible = false;
-            state_snapshot.table.active = false;
-            if state_snapshot.host.visible {
-                state_snapshot.host.render(frame);
+            state_guard.connection.visible = false;
+            state_guard.table.active = false;
+            if state_guard.host.visible {
+                state_guard.host.render(frame);
             }
         }
         ScreenState::TcpServer => {
-            let progress_guard = state_snapshot.progress.lock().await;
-            progress_guard.draw(frame);
+            let progress = poll_future(Box::pin(state_guard.progress.lock()));
+            progress.draw(frame);
         }
-        ScreenState::TcpClient => {
-            if state_snapshot.connection.input_popup {
-                state_snapshot.connection.draw_input(
-                    frame,
-                    state_snapshot.connection.returned_val.clone(),
-                    state_snapshot.input_box,
-                );
-            }
-        }
+        // ScreenState::TcpClient => {
+        //     if state_guard.connection.input_popup {
+        //         state_guard.connection.draw_input(
+        //             frame,
+        //             state_guard.connection.returned_val,
+        //             state_guard.input_box,
+        //         );
+        //     }
+        // }
         _ => {}
-    }
+    })?;
+
+    Ok(())
 }

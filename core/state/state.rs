@@ -22,7 +22,7 @@ pub enum ScreenState {
     TcpServer,
     TcpClient,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ConnectionState {
     Connecting,
     Connected,
@@ -30,7 +30,6 @@ pub enum ConnectionState {
 }
 
 pub struct StateSnapshot<'a> {
-    pub home: &'a mut Home,
     pub table: &'a mut TableWidget,
     pub help: &'a mut HelpPopup,
     pub connection: &'a mut ConnectionPopup,

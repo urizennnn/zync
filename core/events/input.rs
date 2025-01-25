@@ -24,12 +24,12 @@ pub fn handle_help_key(
     if !home.show_api_popup {
         table.help = !table.help;
     }
-    handle_char_key(home, key, input_box);
+    handle_char_key(key, input_box);
 }
 
 pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut ConnectionPopup) {
     if home.show_api_popup {
-        handle_char_key(home, 'q', input_box);
+        handle_char_key('q', input_box);
     } else if home.show_popup {
         home.popup_tx
             .send((home.selected_button as u16, Some(false)))
@@ -53,26 +53,23 @@ pub fn handle_n_key(
         home.show_popup = true;
     }
     if home.show_api_popup || connection.input_popup {
-        handle_char_key(home, c, input_box);
+        handle_char_key(c, input_box);
         return;
     }
 
     if home.current_screen == ScreenState::Connection {
         connection.visible = false;
         home.current_screen = ScreenState::Sessions;
-        return;
     }
 
-    if home.current_screen == ScreenState::Sessions || home.current_screen == ScreenState::Transfer
-    {
+    if home.current_screen == ScreenState::Sessions {
         connection.visible = true;
-        home.current_screen = ScreenState::Connection;
-        // Reset any other states that might interfere
         home.show_popup = false;
         home.show_api_popup = false;
         home.render_url_popup = false;
         input_box.input_mode = InputMode::Normal;
         unsafe { FLAG = false };
+        home.current_screen = ScreenState::Connection;
     }
 }
 pub fn handle_esc_key(home: &mut Home, input_box: &mut InputBox) {
@@ -246,7 +243,7 @@ fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut Erro
     }
 }
 
-pub fn handle_char_key(home: &mut Home, c: char, input_box: &mut InputBox) {
+pub fn handle_char_key(c: char, input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.enter_char(c);
     } else if c == 'e' {
@@ -255,19 +252,19 @@ pub fn handle_char_key(home: &mut Home, c: char, input_box: &mut InputBox) {
     }
 }
 
-pub fn handle_up_key(home: &mut Home, table: &mut TableWidget) {
+pub fn handle_up_key(table: &mut TableWidget) {
     if !table.help {
         table.previous();
     }
 }
 
-pub fn handle_down_arrow(home: &mut Home, table: &mut TableWidget) {
+pub fn handle_down_arrow(table: &mut TableWidget) {
     if !table.help {
         table.next();
     }
 }
 
-pub fn handle_backspace_key(home: &mut Home, input_box: &mut InputBox) {
+pub fn handle_backspace_key(input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.delete_char();
     }
