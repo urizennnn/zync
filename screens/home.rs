@@ -1,23 +1,24 @@
+use super::dashboard::Data;
+use super::session::Device;
 use super::{
     connection_progress::ConnectionProgress, help::help_popup::HelpPopup, host_type::HostTypePopup,
     popup::ApiPopup,
 };
+use crate::core_mod::widgets::TableWidgetItemManager;
 use crate::events::input::{
-    handle_backspace_key, handle_char_key, handle_down_arrow, handle_enter_key, handle_esc_key,
-    handle_help_key, handle_left_key, handle_n_key, handle_q_key, handle_right_key, handle_up_key,
+    handle_backspace_key, handle_char_key, handle_enter_key, handle_esc_key, handle_help_key,
+    handle_left_key, handle_n_key, handle_q_key, handle_right_key, handle_up_key,
 };
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
 use crate::state::{manager::manage_state, state::ScreenState};
-use crate::utils::poll::poll_future;
 use crate::utils::reset_state::StateReset;
 use crate::{
     core_mod::{core::check_config, widgets::TableWidget},
     state::state::StateSnapshot,
 };
 use crossterm::event::{Event, KeyCode};
-use futures::lock::Mutex;
 use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style},
@@ -25,12 +26,9 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget},
     DefaultTerminal,
 };
-use std::{
-    error::Error,
-    io,
-    sync::{mpsc, Arc},
-};
-use tokio::sync::mpsc::Receiver;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::{error::Error, sync::mpsc};
 use tui_big_text::{BigText, BigTextBuilder};
 use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
@@ -49,54 +47,157 @@ pub struct Home {
 }
 
 impl Home {
-    async fn handle_event(
+    pub fn handle_event(
         &mut self,
         event: Event,
-        input_box: &mut InputBox,
-        table: &mut TableWidget,
-        connection: &mut ConnectionPopup,
-        error: &mut ErrorWidget,
-        host: &mut HostTypePopup,
-        reset: &mut StateReset,
-    ) -> io::Result<()> {
+        input_box: Arc<Mutex<InputBox>>,
+        table: Arc<Mutex<TableWidget>>,
+        connection: Arc<Mutex<ConnectionPopup>>,
+        error: Arc<Mutex<ErrorWidget>>,
+        host: Arc<Mutex<HostTypePopup>>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if let Event::Key(key) = event {
             match key.code {
-                KeyCode::Char('q') => handle_q_key(self, input_box, connection),
-                KeyCode::Char('n') => handle_n_key(self, 'n', input_box, connection),
-                KeyCode::Down => handle_down_arrow(table),
-                KeyCode::Up => handle_up_key(table),
-                KeyCode::Esc => handle_esc_key(self, input_box),
-                KeyCode::Right => handle_right_key(self, input_box, connection, host),
-                KeyCode::Left => handle_left_key(self, input_box, connection, host),
-                KeyCode::Enter => {
-                    handle_enter_key(self, input_box, error, table, connection, host, reset)
+                // Quit the app
+                KeyCode::Char('q') => {
+                    let mut input_box = input_box.lock().unwrap();
+                    let mut connection = connection.lock().unwrap();
+                    handle_q_key(self, &mut input_box, &mut connection);
                 }
-                KeyCode::Char('?') => handle_help_key(self, table, '?', input_box),
-                KeyCode::Char(c) => handle_char_key(c, input_box),
-                KeyCode::Backspace => handle_backspace_key(input_box),
+
+                // Start a new session
+                KeyCode::Char('n') => {
+                    let mut input_box = input_box.lock().unwrap();
+                    let mut connection = connection.lock().unwrap();
+                    handle_n_key(self, 'n', &mut input_box, &mut connection);
+                }
+
+                // Navigation keys for the table
+                KeyCode::Down => {
+                    let mut table = table.lock().unwrap();
+                    table.next();
+                }
+                KeyCode::Up => {
+                    let mut table = table.lock().unwrap();
+                    table.previous();
+                }
+
+                // Close popups or escape actions
+                KeyCode::Esc => {
+                    let mut input_box = input_box.lock().unwrap();
+                    handle_esc_key(self, &mut input_box);
+                }
+
+                // Handle left and right navigation
+                KeyCode::Right => {
+                    let mut input_box = input_box.lock().unwrap();
+                    let mut connection = connection.lock().unwrap();
+                    let mut host = host.lock().unwrap();
+                    handle_right_key(self, &mut input_box, &mut connection, &mut host)
+                }
+                KeyCode::Left => {
+                    let mut input_box = input_box.lock().unwrap();
+                    let mut connection = connection.lock().unwrap();
+                    let mut host = host.lock().unwrap();
+                    handle_left_key(self, &mut input_box, &mut connection, &mut host)
+                }
+
+                // Handle Enter key actions based on current context
+                KeyCode::Enter => {
+                    let mut input_box = input_box.lock().unwrap();
+                    let mut error = error.lock().unwrap();
+                    let mut table = table.lock().unwrap();
+                    let mut connection = connection.lock().unwrap();
+                    let mut host = host.lock().unwrap();
+                    handle_enter_key(
+                        self,
+                        &mut input_box,
+                        &mut error,
+                        &mut table,
+                        &mut connection,
+                        &mut host,
+                    )
+                }
+
+                // Handle '?' key for help
+                KeyCode::Char('?') => {
+                    let mut table = table.lock().unwrap();
+                    let mut input_box = input_box.lock().unwrap();
+                    handle_help_key(self, &mut table, '?', &mut input_box);
+                }
+
+                // Handle regular character inputs
+                KeyCode::Char(c) => {
+                    let mut input_box = input_box.lock().unwrap();
+                    handle_char_key(c, &mut input_box);
+                }
+
+                // Handle backspace key
+                KeyCode::Backspace => {
+                    let mut input_box = input_box.lock().unwrap();
+                    handle_backspace_key(&mut input_box);
+                }
+
                 _ => {}
             }
         }
+
         Ok(())
     }
 
     pub async fn run(
         &mut self,
         term: Arc<Mutex<DefaultTerminal>>,
-        mut event_rx: Receiver<Event>,
+        event_rx: mpsc::Receiver<Event>,
     ) -> Result<(), Box<dyn Error>> {
-        let mut input_box = InputBox::default();
-        let mut progress = Arc::new(Mutex::new(ConnectionProgress::default()));
-        let mut help = HelpPopup::new();
-        let mut table = TableWidget::new();
-        let mut connection = ConnectionPopup::new();
+        let input_box = Arc::new(Mutex::new(InputBox::default()));
+        let progress = Arc::new(Mutex::new(ConnectionProgress::default()));
+        let help = Arc::new(Mutex::new(HelpPopup::new()));
+        let table = Arc::new(Mutex::new(TableWidget::new()));
+        let connection = Arc::new(Mutex::new(ConnectionPopup::new()));
         let mut api_popup = ApiPopup::new();
-        let mut error = ErrorWidget::new();
-        let mut host = HostTypePopup::new();
-        let mut state_handler_reset = StateReset::default();
-
+        let error = Arc::new(Mutex::new(ErrorWidget::new()));
+        let host = Arc::new(Mutex::new(HostTypePopup::new()));
+        let mut session = Device::new_empty();
+        session
+            .add_item(
+                Device {
+                    files: Some(vec![
+                        Data {
+                            name: "File 1".to_string(),
+                            status: Line::from(Span::styled(
+                                "Not Sent",
+                                Style::default().fg(ratatui::style::Color::Red),
+                            )),
+                            destination: "Urizen".to_string(),
+                            time: "Just now".to_string(),
+                        },
+                        Data {
+                            name: "File 2".to_string(),
+                            status: Line::from(Span::styled(
+                                "Sending",
+                                Style::default().fg(ratatui::style::Color::Yellow),
+                            )),
+                            destination: "Urizen".to_string(),
+                            time: "10 mins ago".to_string(),
+                        },
+                    ]),
+                    name: "Urizen".to_string(),
+                    last_connection: super::session::Connection {
+                        total: "Just now".to_string(),
+                        format_date: "Just now".to_string(),
+                    },
+                    last_transfer: super::session::Transfer {
+                        status: "Not Sent".to_string(),
+                        size: "Not Sent".to_string(),
+                        name: "File 1".to_string(),
+                    },
+                    ip: "".to_string(),
+                },
+                table.clone(),
+            )
+            .await;
         while self.running {
-            // Handle popup events in a separate scope to limit borrow duration
             {
                 if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
                     match confirmed {
@@ -115,53 +216,55 @@ impl Home {
 
             match check_config() {
                 Ok(_) => {
-                    let state_snapshot = Arc::new(Mutex::new(StateSnapshot {
-                        table: &mut table,
-                        help: &mut help,
-                        connection: &mut connection,
-                        input_box: &mut input_box,
-                        host: &mut host,
-                        progress: &mut progress,
-                    }));
+                    let state_snapshot = Arc::new(StateSnapshot {
+                        table: table.clone(),
+                        help: help.clone(),
+                        connection: connection.clone(),
+                        input_box: input_box.clone(),
+                        host: host.clone(),
+                        progress: progress.clone(),
+                    });
 
-                    poll_future(Box::pin(manage_state(
-                        self,
-                        state_snapshot,
-                        Arc::clone(&term),
-                    )))?;
+                    manage_state(self, state_snapshot, Arc::clone(&term)).unwrap();
                 }
                 Err(_) => {
-                    term.lock().await.draw(|f| {
+                    let input_box_guard = input_box.lock();
+                    let error_guard = error.lock();
+
+                    term.lock().unwrap().draw(|f| {
                         let area = f.area();
                         self.render(area, f.buffer_mut());
                         if self.show_popup {
                             self.render_notification(f);
                         }
                         if self.show_api_popup {
-                            api_popup.draw(f, &input_box);
+                            api_popup.draw(f, &input_box_guard.unwrap());
                         }
                         if self.render_url_popup {
                             api_popup.render_url(f);
                         }
                         if self.error {
-                            error.render_popup(f);
+                            error_guard.unwrap().render_popup(f);
                         }
                     })?;
                 }
             }
 
-            if let Some(event) = event_rx.recv().await {
-                self.handle_event(
-                    event,
-                    &mut input_box,
-                    &mut table,
-                    &mut connection,
-                    &mut error,
-                    &mut host,
-                    &mut state_handler_reset,
-                )
-                .await?;
-            }
+            let event = match event_rx.recv().unwrap() {
+                event => event,
+                _ => {
+                    continue;
+                }
+            };
+            self.handle_event(
+                event,
+                input_box.clone(),
+                table.clone(),
+                connection.clone(),
+                error.clone(),
+                host.clone(),
+            )
+            .unwrap();
         }
 
         Ok(())
@@ -220,7 +323,7 @@ impl Home {
     }
 
     pub fn new() -> Self {
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, rx) = mpsc::channel();
         Self {
             current_screen: ScreenState::Sessions,
             error: false,
@@ -242,6 +345,7 @@ impl Default for Home {
         Self::new()
     }
 }
+
 impl Widget for &Home {
     fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
         let layout = Layout::default()
@@ -253,7 +357,6 @@ impl Widget for &Home {
             ])
             .split(area);
 
-        // Pass show_popup state to create_border
         let border = Home::create_border("Welcome", self.show_popup);
         border.clone().render(layout[0], buf);
 

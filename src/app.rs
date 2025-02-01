@@ -3,6 +3,7 @@ use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use std::sync::{mpsc, Mutex};
 use std::{
     error::Error,
     io::{self, stdout},
@@ -10,9 +11,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use tokio::sync::mpsc;
 
-use futures::lock::Mutex;
 pub async fn init_app() -> Result<(), Box<dyn Error>> {
     tui_logger::init_logger(log::LevelFilter::Trace)?;
     tui_logger::set_default_level(log::LevelFilter::Info);
@@ -59,13 +58,13 @@ pub async fn init_app() -> Result<(), Box<dyn Error>> {
 
     let backend = Arc::new(Mutex::new(ratatui::init()));
 
-    let (event_tx, event_rx) = mpsc::channel(100);
+    let (event_tx, event_rx) = mpsc::channel();
 
     let event_handle = tokio::spawn(async move {
         loop {
             if event::poll(Duration::from_millis(100))? {
                 if let Ok(event) = event::read() {
-                    if event_tx.send(event).await.is_err() {
+                    if event_tx.send(event).is_err() {
                         break;
                     }
                 }
@@ -77,7 +76,7 @@ pub async fn init_app() -> Result<(), Box<dyn Error>> {
     let app_result = Home::default().run(backend.clone(), event_rx).await;
 
     event_handle.abort();
-    let res = backend.lock().await.show_cursor();
+    let res = backend.lock().unwrap().show_cursor();
     if let Err(err) = res {
         let error_message = format!("App panicked out: {:?}", err);
         restore_tui()?;

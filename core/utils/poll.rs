@@ -1,11 +1,9 @@
-use core::panic;
 use std::{
     pin::Pin,
     task::{Context, Poll},
 };
 
 use futures::task::noop_waker_ref;
-use log::log;
 
 pub fn poll_future<F: futures::Future + Unpin>(mut func: F) -> F::Output
 where

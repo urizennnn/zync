@@ -1,7 +1,6 @@
 use crate::core_mod::core::create_config;
 use crate::core_mod::widgets::SelectedItem;
 use crate::core_mod::widgets::TableWidget;
-use crate::screens::dashboard::Data;
 use crate::screens::error::error_widget::ErrorType;
 use crate::screens::error::error_widget::ErrorWidget;
 use crate::screens::home::Home;
@@ -13,7 +12,6 @@ use crate::screens::popup::FLAG;
 use crate::screens::protocol_popup::ConnectionPopup;
 use crate::screens::protocol_popup::ConnectionType;
 use crate::state::state::ScreenState;
-use crate::utils::reset_state::StateReset;
 
 pub fn handle_help_key(
     home: &mut Home,
@@ -37,6 +35,9 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
         home.show_popup = false;
     } else if connection.input_popup {
         connection.input_popup = false;
+        home.current_screen = ScreenState::Sessions;
+    }
+    if home.current_screen == ScreenState::Transfer {
         home.current_screen = ScreenState::Sessions;
     } else {
         home.running = false;
@@ -137,108 +138,84 @@ pub fn handle_enter_key(
     table: &mut TableWidget,
     connection: &mut ConnectionPopup,
     host: &mut HostTypePopup,
-    rest: &mut StateReset,
 ) {
-    match (
-        home.show_popup,
-        table.active,
-        connection.visible,
-        host.visible,
-    ) {
-        (true, false, false, false) => {
-            home.popup_tx
-                .send((home.selected_button as u16, Some(true)))
-                .unwrap();
-            home.show_popup = false;
+    // If a popup is showing, assume Enter confirms the popup.
+    if home.show_popup {
+        if let Err(e) = home
+            .popup_tx
+            .send((home.selected_button as u16, Some(true)))
+        {
+            eprintln!("Failed to send popup confirmation: {}", e);
         }
-        (false, true, false, false) => {
-            let selected = table.enter();
-            let data_item: Option<&Vec<Data>> = if let Some(SelectedItem::Device(device)) = selected
-            {
-                device.files.as_ref()
-            } else {
-                None
-            };
-
-            if let Some(data) = data_item {
-                let cloned_items: Vec<(String, ratatui::prelude::Line, String, String)> = data
-                    .iter()
-                    .map(|d| {
-                        (
-                            d.name.clone(),
-                            d.status.clone(),
-                            d.destination.clone(),
-                            d.time.clone(),
-                        )
-                    })
-                    .collect();
-
-                cloned_items
-                    .into_iter()
-                    .for_each(|(name, status, destination, time)| {
-                        table.add_item(name, status, destination, time);
-                    });
-            }
-
-            home.current_screen = ScreenState::Transfer;
-        }
-        (false, false, true, false) => {
-            let selected = connection.return_selected();
-            if selected == ConnectionType::TCP {
-                connection.input_popup = true;
-                connection.visible = false;
-                host.visible = true;
-                home.current_screen = ScreenState::TCP;
-            }
-        }
-        (false, false, false, true) => {
-            let selected = host.return_selected();
-            if selected == host_type::HostType::SENDER {
-                connection.logs = true;
-
-                connection.visible = false;
-                host.visible = false;
-                home.current_screen = ScreenState::TcpServer;
-            } else {
-                connection.input_popup = true;
-                connection.visible = false;
-                host.visible = false;
-                home.current_screen = ScreenState::TcpClient;
-            }
-        }
-        _ => match_input_state(home, input_box, error),
+        home.show_popup = false;
+        return;
     }
-}
 
-fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut ErrorWidget) {
-    match input_box.input_mode == InputMode::Editing {
-        true => {
-            let api = input_box.submit_message();
-            match api {
-                Ok(api) => {
-                    create_config(&api).unwrap();
-                    home.show_api_popup = false;
-                }
-                Err(err) => {
-                    home.show_api_popup = false;
-                    error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
-                    home.error = true;
+    // If the table is active, process selection.
+    if table.active {
+        // Temporarily borrow the selection and then drop it so we can mutate `table` later.
+        if let Some(selected) = table.enter() {
+            // Match on the selected item.
+            if let SelectedItem::Device(device) = selected {
+                // Clone the files (if any) so that we no longer hold a borrow on `table`.
+                if let Some(files) = device.files.clone() {
+                    for file in files {
+                        // Now we can safely call add_item.
+                        table.add_item(
+                            file.name.clone(),
+                            file.status.clone(),
+                            file.destination.clone(),
+                            file.time.clone(),
+                        );
+                    }
                 }
             }
         }
-        false => {
-            let output = input_box.submit_message();
-            match output {
-                Ok(key) => {
-                    create_config(&key).unwrap();
-                    home.show_api_popup = false;
-                }
-                Err(err) => {
-                    home.show_api_popup = false;
-                    error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
-                    home.error = true;
-                }
+        home.current_screen = ScreenState::Transfer;
+        return;
+    }
+
+    // If connection popup is visible, handle connection selection.
+    if connection.visible {
+        let selected = connection.return_selected();
+        if selected == ConnectionType::TCP {
+            connection.input_popup = true;
+            connection.visible = false;
+            host.visible = true;
+            home.current_screen = ScreenState::TCP;
+        }
+        return;
+    }
+
+    // If host type popup is visible, handle host type selection.
+    if host.visible {
+        let selected = host.return_selected();
+        if selected == host_type::HostType::SENDER {
+            connection.logs = true;
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::TcpServer;
+        } else {
+            connection.input_popup = true;
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::TcpClient;
+        }
+        return;
+    }
+
+    // Default: assume we're in API key entry mode.
+    match input_box.submit_message() {
+        Ok(api) => {
+            if let Err(e) = create_config(&api) {
+                error.set_val(e.to_string(), &mut ErrorType::Warning, "Ok".to_string());
+                home.error = true;
             }
+            home.show_api_popup = false;
+        }
+        Err(err) => {
+            error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
+            home.error = true;
         }
     }
 }

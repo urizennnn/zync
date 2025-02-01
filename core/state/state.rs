@@ -1,7 +1,5 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use futures::lock::Mutex;
-
 use crate::{
     core_mod::widgets::TableWidget,
     screens::{
@@ -9,6 +7,7 @@ use crate::{
         host_type::HostTypePopup, popup::InputBox, protocol_popup::ConnectionPopup,
     },
 };
+use std::sync::Mutex;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
 pub enum ScreenState {
@@ -28,12 +27,11 @@ pub enum ConnectionState {
     Connected,
     Failed(String),
 }
-
-pub struct StateSnapshot<'a> {
-    pub table: &'a mut TableWidget,
-    pub help: &'a mut HelpPopup,
-    pub connection: &'a mut ConnectionPopup,
-    pub input_box: &'a mut InputBox,
-    pub host: &'a mut HostTypePopup,
-    pub progress: &'a mut Arc<Mutex<ConnectionProgress>>,
+pub struct StateSnapshot {
+    pub table: Arc<Mutex<TableWidget>>,
+    pub help: Arc<Mutex<HelpPopup>>,
+    pub connection: Arc<Mutex<ConnectionPopup>>,
+    pub input_box: Arc<Mutex<InputBox>>,
+    pub host: Arc<Mutex<HostTypePopup>>,
+    pub progress: Arc<Mutex<ConnectionProgress>>,
 }
