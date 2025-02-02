@@ -7,13 +7,12 @@ use super::{
 use crate::core_mod::widgets::TableWidgetItemManager;
 use crate::events::input::{
     handle_backspace_key, handle_char_key, handle_enter_key, handle_esc_key, handle_help_key,
-    handle_left_key, handle_n_key, handle_q_key, handle_right_key, handle_up_key,
+    handle_left_key, handle_n_key, handle_q_key, handle_right_key,
 };
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
 use crate::state::{manager::manage_state, state::ScreenState};
-use crate::utils::reset_state::StateReset;
 use crate::{
     core_mod::{core::check_config, widgets::TableWidget},
     state::state::StateSnapshot,
@@ -250,12 +249,7 @@ impl Home {
                 }
             }
 
-            let event = match event_rx.recv().unwrap() {
-                event => event,
-                _ => {
-                    continue;
-                }
-            };
+            let event = event_rx.recv().unwrap();
             self.handle_event(
                 event,
                 input_box.clone(),

@@ -37,9 +37,17 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
         connection.input_popup = false;
         home.current_screen = ScreenState::Sessions;
     }
-    if home.current_screen == ScreenState::Transfer {
+
+    // If we're in TcpServer, go back to Sessions
+    if home.current_screen == ScreenState::TcpServer {
         home.current_screen = ScreenState::Sessions;
-    } else {
+    }
+    // If we're in Transfer, also go to Sessions
+    else if home.current_screen == ScreenState::Transfer {
+        home.current_screen = ScreenState::Sessions;
+    }
+    // Otherwise, quit
+    else {
         home.running = false;
     }
 }
@@ -58,15 +66,17 @@ pub fn handle_n_key(
         return;
     }
 
+    // If we're in Connection, go back to Sessions
     if home.current_screen == ScreenState::Connection {
         connection.visible = false;
         home.current_screen = ScreenState::Sessions;
+        return;
     }
 
-    if home.current_screen == ScreenState::Sessions {
+    // If we're in Sessions OR Transfer, go to Connection
+    if home.current_screen == ScreenState::Sessions || home.current_screen == ScreenState::Transfer
+    {
         connection.visible = true;
-        // home.show_popup = false;
-        // home.show_api_popup = false;
         home.render_url_popup = false;
         input_box.input_mode = InputMode::Normal;
         unsafe { FLAG = false };
@@ -139,7 +149,6 @@ pub fn handle_enter_key(
     connection: &mut ConnectionPopup,
     host: &mut HostTypePopup,
 ) {
-    // If a popup is showing, assume Enter confirms the popup.
     if home.show_popup {
         if let Err(e) = home
             .popup_tx
@@ -151,16 +160,11 @@ pub fn handle_enter_key(
         return;
     }
 
-    // If the table is active, process selection.
     if table.active {
-        // Temporarily borrow the selection and then drop it so we can mutate `table` later.
         if let Some(selected) = table.enter() {
-            // Match on the selected item.
             if let SelectedItem::Device(device) = selected {
-                // Clone the files (if any) so that we no longer hold a borrow on `table`.
                 if let Some(files) = device.files.clone() {
                     for file in files {
-                        // Now we can safely call add_item.
                         table.add_item(
                             file.name.clone(),
                             file.status.clone(),
@@ -175,7 +179,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // If connection popup is visible, handle connection selection.
     if connection.visible {
         let selected = connection.return_selected();
         if selected == ConnectionType::TCP {
@@ -187,7 +190,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // If host type popup is visible, handle host type selection.
     if host.visible {
         let selected = host.return_selected();
         if selected == host_type::HostType::SENDER {
@@ -204,18 +206,17 @@ pub fn handle_enter_key(
         return;
     }
 
-    // Default: assume we're in API key entry mode.
     match input_box.submit_message() {
         Ok(api) => {
             if let Err(e) = create_config(&api) {
                 error.set_val(e.to_string(), &mut ErrorType::Warning, "Ok".to_string());
                 home.error = true;
             }
-            // Reset lingering states after a config attempt:
             connection.visible = false;
             host.visible = false;
-            home.current_screen = ScreenState::Sessions;
             home.show_api_popup = false;
+            home.show_popup = false;
+            home.current_screen = ScreenState::Sessions;
         }
         Err(err) => {
             error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());

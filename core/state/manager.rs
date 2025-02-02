@@ -13,7 +13,6 @@ pub fn manage_state(
     let mut terminal = term.lock().unwrap();
 
     terminal.draw(|frame| {
-        // If we’re in TcpServer state, draw the ConnectionProgress first
         if current_screen == ScreenState::TcpServer {
             let progress = state_snapshot.progress.lock().unwrap();
             progress.draw(frame);
