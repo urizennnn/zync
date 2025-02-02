@@ -9,6 +9,7 @@ pub mod error_widget {
 
     use crate::utils::calculate::calculate_popup_area;
 
+    #[derive(Debug)]
     pub struct ErrorWidget {
         pub message: String,
         pub title: Line<'static>,

@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::core_mod::widgets::{Item, TableWidget};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Data {
     pub name: String,
     pub status: Line<'static>,

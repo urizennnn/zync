@@ -1,27 +1,28 @@
+use crate::screens::home::Home;
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{self, DisableMouseCapture},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use std::sync::{mpsc, Mutex};
 use std::{
     error::Error,
     io::{self, stdout},
     panic::take_hook,
-    sync::{Arc, Mutex},
+    sync::Arc,
+    time::Duration,
 };
 
-use crate::screens::home::Home;
-
-pub fn init_app() -> Result<(), Box<dyn Error>> {
+pub async fn init_app() -> Result<(), Box<dyn Error>> {
     tui_logger::init_logger(log::LevelFilter::Trace)?;
     tui_logger::set_default_level(log::LevelFilter::Info);
 
-    // Enable raw mode, color eyre for error handling, and setup panic hook
     enable_raw_mode()?;
     color_eyre::install()?;
 
-    // Install custom panic hook
     let original_hook = take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
+        let _ = restore_tui();
+
         original_hook(panic_info);
         let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
             .panic_section(format!(
@@ -34,6 +35,7 @@ pub fn init_app() -> Result<(), Box<dyn Error>> {
         eyre_hook.install().unwrap();
         let msg = format!("{}", panic_hook.panic_report(panic_info));
         eprintln!("{msg}");
+
         use human_panic::{handle_dump, print_msg, Metadata};
         let author = format!("authored by {}", env!("CARGO_PKG_AUTHORS"));
         let support = format!(
@@ -51,31 +53,43 @@ pub fn init_app() -> Result<(), Box<dyn Error>> {
         std::process::exit(libc::EXIT_FAILURE);
     }));
 
-    // Start the application
     let mut stdout = stdout();
-    crossterm::execute!(stdout, EnableMouseCapture, EnterAlternateScreen)?;
+    crossterm::execute!(stdout, EnterAlternateScreen)?;
 
     let backend = Arc::new(Mutex::new(ratatui::init()));
-    let app = Home::default().run(backend.clone());
 
-    // Restore TUI state after app ends
-    let res = backend.lock().unwrap().show_cursor();
-    match res {
-        Ok(_) => {}
-        Err(err) => {
-            let error_message = format!("App panicked out: {:?}", err);
-            panic!("{error_message}")
+    let (event_tx, event_rx) = mpsc::channel();
+
+    let event_handle = tokio::spawn(async move {
+        loop {
+            if event::poll(Duration::from_millis(100))? {
+                if let Ok(event) = event::read() {
+                    if event_tx.send(event).is_err() {
+                        break;
+                    }
+                }
+            }
         }
+        Ok::<_, io::Error>(())
+    });
+
+    let app_result = Home::default().run(backend.clone(), event_rx).await;
+
+    event_handle.abort();
+    let res = backend.lock().unwrap().show_cursor();
+    if let Err(err) = res {
+        let error_message = format!("App panicked out: {:?}", err);
+        restore_tui()?;
+        panic!("{error_message}");
     }
 
-    // Exit gracefully and restore terminal
     restore_tui()?;
-    app
+    app_result
 }
 
 fn restore_tui() -> io::Result<()> {
     let mut stdout = stdout();
-    crossterm::execute!(stdout, LeaveAlternateScreen, DisableMouseCapture)?;
     disable_raw_mode()?;
+    crossterm::execute!(stdout, LeaveAlternateScreen, DisableMouseCapture)?;
     Ok(())
 }

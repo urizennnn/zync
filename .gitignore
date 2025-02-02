@@ -34,3 +34,4 @@ vendor/
 *.swp
 *~
 *.txt
+lib/tcp/server/target

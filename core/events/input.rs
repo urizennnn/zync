@@ -1,14 +1,16 @@
 use crate::core_mod::core::create_config;
 use crate::core_mod::widgets::SelectedItem;
 use crate::core_mod::widgets::TableWidget;
-use crate::screens::dashboard::Data;
 use crate::screens::error::error_widget::ErrorType;
 use crate::screens::error::error_widget::ErrorWidget;
 use crate::screens::home::Home;
+use crate::screens::host_type;
+use crate::screens::host_type::HostTypePopup;
 use crate::screens::popup::InputBox;
 use crate::screens::popup::InputMode;
 use crate::screens::popup::FLAG;
 use crate::screens::protocol_popup::ConnectionPopup;
+use crate::screens::protocol_popup::ConnectionType;
 use crate::state::state::ScreenState;
 
 pub fn handle_help_key(
@@ -20,12 +22,12 @@ pub fn handle_help_key(
     if !home.show_api_popup {
         table.help = !table.help;
     }
-    handle_char_key(home, key, input_box);
+    handle_char_key(key, input_box);
 }
 
 pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut ConnectionPopup) {
     if home.show_api_popup {
-        handle_char_key(home, 'q', input_box);
+        handle_char_key('q', input_box);
     } else if home.show_popup {
         home.popup_tx
             .send((home.selected_button as u16, Some(false)))
@@ -34,7 +36,18 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
     } else if connection.input_popup {
         connection.input_popup = false;
         home.current_screen = ScreenState::Sessions;
-    } else {
+    }
+
+    // If we're in TcpServer, go back to Sessions
+    if home.current_screen == ScreenState::TcpServer {
+        home.current_screen = ScreenState::Sessions;
+    }
+    // If we're in Transfer, also go to Sessions
+    else if home.current_screen == ScreenState::Transfer {
+        home.current_screen = ScreenState::Sessions;
+    }
+    // Otherwise, quit
+    else {
         home.running = false;
     }
 }
@@ -49,26 +62,25 @@ pub fn handle_n_key(
         home.show_popup = true;
     }
     if home.show_api_popup || connection.input_popup {
-        handle_char_key(home, c, input_box);
+        handle_char_key(c, input_box);
         return;
     }
 
+    // If we're in Connection, go back to Sessions
     if home.current_screen == ScreenState::Connection {
         connection.visible = false;
         home.current_screen = ScreenState::Sessions;
         return;
     }
 
+    // If we're in Sessions OR Transfer, go to Connection
     if home.current_screen == ScreenState::Sessions || home.current_screen == ScreenState::Transfer
     {
         connection.visible = true;
-        home.current_screen = ScreenState::Connection;
-        // Reset any other states that might interfere
-        home.show_popup = false;
-        home.show_api_popup = false;
         home.render_url_popup = false;
         input_box.input_mode = InputMode::Normal;
         unsafe { FLAG = false };
+        home.current_screen = ScreenState::Connection;
     }
 }
 pub fn handle_esc_key(home: &mut Home, input_box: &mut InputBox) {
@@ -93,6 +105,7 @@ pub fn handle_right_key(
     home: &mut Home,
     input_box: &mut InputBox,
     connection: &mut ConnectionPopup,
+    host: &mut HostTypePopup,
 ) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
@@ -103,6 +116,8 @@ pub fn handle_right_key(
         input_box.move_cursor_right();
     } else if connection.visible {
         connection.next();
+    } else if host.visible {
+        host.next();
     }
 }
 
@@ -110,6 +125,7 @@ pub fn handle_left_key(
     home: &mut Home,
     input_box: &mut InputBox,
     connection: &mut ConnectionPopup,
+    host: &mut HostTypePopup,
 ) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
@@ -120,6 +136,8 @@ pub fn handle_left_key(
         input_box.move_cursor_left();
     } else if connection.visible {
         connection.previous();
+    } else if host.visible {
+        host.previous();
     }
 }
 
@@ -129,86 +147,88 @@ pub fn handle_enter_key(
     error: &mut ErrorWidget,
     table: &mut TableWidget,
     connection: &mut ConnectionPopup,
+    host: &mut HostTypePopup,
 ) {
-    match (home.show_popup, table.active, connection.visible) {
-        (true, _, _) => {
-            home.popup_tx
-                .send((home.selected_button as u16, Some(true)))
-                .unwrap();
-            home.show_popup = false;
+    if home.show_popup {
+        if let Err(e) = home
+            .popup_tx
+            .send((home.selected_button as u16, Some(true)))
+        {
+            eprintln!("Failed to send popup confirmation: {}", e);
         }
-        (_, true, _) => {
-            let selected = table.enter();
-            let data_item: Option<&Vec<Data>> = if let Some(SelectedItem::Device(device)) = selected
-            {
-                device.files.as_ref()
-            } else {
-                None
-            };
+        home.show_popup = false;
+        return;
+    }
 
-            if let Some(data) = data_item {
-                let cloned_items: Vec<(String, ratatui::prelude::Line, String, String)> = data
-                    .iter()
-                    .map(|d| {
-                        (
-                            d.name.clone(),
-                            d.status.clone(),
-                            d.destination.clone(),
-                            d.time.clone(),
-                        )
-                    })
-                    .collect();
-
-                cloned_items
-                    .into_iter()
-                    .for_each(|(name, status, destination, time)| {
-                        table.add_item(name, status, destination, time);
-                    });
+    if table.active {
+        if let Some(selected) = table.enter() {
+            if let SelectedItem::Device(device) = selected {
+                if let Some(files) = device.files.clone() {
+                    for file in files {
+                        table.add_item(
+                            file.name.clone(),
+                            file.status.clone(),
+                            file.destination.clone(),
+                            file.time.clone(),
+                        );
+                    }
+                }
             }
-
-            home.current_screen = ScreenState::Transfer;
         }
-        (_, _, true) => {
+        home.current_screen = ScreenState::Transfer;
+        return;
+    }
+
+    if connection.visible {
+        let selected = connection.return_selected();
+        if selected == ConnectionType::TCP {
             connection.input_popup = true;
+            connection.visible = false;
+            host.visible = true;
             home.current_screen = ScreenState::TCP;
-            connection.return_selected();
         }
-        _ => match_input_state(home, input_box, error),
+        return;
+    }
+
+    if host.visible {
+        let selected = host.return_selected();
+        if selected == host_type::HostType::SENDER {
+            connection.logs = true;
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::TcpServer;
+        } else {
+            connection.input_popup = true;
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::TcpClient;
+        }
+        return;
+    }
+
+    match input_box.submit_message() {
+        Ok(api) => {
+            if let Err(e) = create_config(&api) {
+                error.set_val(e.to_string(), &mut ErrorType::Warning, "Ok".to_string());
+                home.error = true;
+            }
+            connection.visible = false;
+            host.visible = false;
+            home.show_api_popup = false;
+            home.show_popup = false;
+            home.current_screen = ScreenState::Sessions;
+        }
+        Err(err) => {
+            error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
+            home.error = true;
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::Sessions;
+        }
     }
 }
-fn match_input_state(home: &mut Home, input_box: &mut InputBox, error: &mut ErrorWidget) {
-    match input_box.input_mode == InputMode::Editing {
-        true => {
-            let api = input_box.submit_message();
-            match api {
-                Ok(api) => {
-                    create_config(&api).unwrap();
-                    home.show_api_popup = false;
-                }
-                Err(err) => {
-                    home.show_api_popup = false;
-                    error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
-                    home.error = true;
-                }
-            }
-        }
-        false => {
-            let output = input_box.submit_message();
-            match output {
-                Ok(key) => {
-                    create_config(&key).unwrap();
-                    home.show_api_popup = false;
-                }
-                Err(err) => {
-                    home.show_api_popup = false;
-                    error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
-                    home.error = true;
-                }
-            }
-        }
-    }
-}
-pub fn handle_char_key(_: &mut Home, c: char, input_box: &mut InputBox) {
+
+pub fn handle_char_key(c: char, input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.enter_char(c);
     } else if c == 'e' {
@@ -217,19 +237,19 @@ pub fn handle_char_key(_: &mut Home, c: char, input_box: &mut InputBox) {
     }
 }
 
-pub fn handle_up_key(_: &mut Home, table: &mut TableWidget) {
+pub fn handle_up_key(table: &mut TableWidget) {
     if !table.help {
         table.previous();
     }
 }
 
-pub fn handle_down_arrow(_: &mut Home, table: &mut TableWidget) {
+pub fn handle_down_arrow(table: &mut TableWidget) {
     if !table.help {
         table.next();
     }
 }
 
-pub fn handle_backspace_key(_: &mut Home, input_box: &mut InputBox) {
+pub fn handle_backspace_key(input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.delete_char();
     }

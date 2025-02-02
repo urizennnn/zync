@@ -1,4 +1,5 @@
 use std::io;
+use std::sync::{Arc, Mutex};
 use unicode_width::UnicodeWidthStr;
 
 use crossterm::event::{self, Event, KeyCode};
@@ -62,7 +63,11 @@ impl TableColors {
 pub trait TableWidgetItemManager {
     type Item;
 
-    fn add_item(&mut self, item: Self::Item, table: &mut TableWidget);
+    fn add_item(
+        &mut self,
+        item: Self::Item,
+        table: Arc<Mutex<TableWidget>>,
+    ) -> impl std::future::Future<Output = ()> + Send;
     fn constraint_len_calculator(items: &[&Self::Item]) -> Vec<u16>;
 }
 

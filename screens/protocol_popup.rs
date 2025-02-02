@@ -9,6 +9,7 @@ use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 
 use crate::{
     screens::popup::InputBox,
+    state::state::ScreenState,
     utils::calculate::{calculate_popup_area, centered_rect},
 };
 
@@ -22,8 +23,10 @@ pub enum ConnectionType {
 
 #[derive(Debug)]
 pub struct ConnectionPopup {
+    pub returned_val: Option<ConnectionType>,
     pub selected: ConnectionType,
     pub visible: bool,
+    pub logs: bool,
     pub input_popup: bool,
 }
 
@@ -46,6 +49,8 @@ impl ConnectionPopup {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
+            returned_val: None,
+            logs: false,
             input_popup: false,
             selected: ConnectionType::TCP,
             visible: true,
@@ -115,24 +120,73 @@ impl ConnectionPopup {
     pub fn previous(&mut self) {
         self.selected = self.selected.previous_val();
     }
-    pub fn return_selected(&self) -> ConnectionType {
+    pub fn return_selected(&mut self) -> ConnectionType {
+        self.returned_val = Some(self.selected);
         self.selected.return_selected_type()
     }
 
     pub fn draw_input(
         &mut self,
         f: &mut Frame,
-        screen_state: ConnectionType,
+        screen_state: Option<ConnectionType>,
         input: &mut InputBox,
     ) {
         match screen_state {
-            ConnectionType::TCP => {
+            Some(ConnectionType::TCP) => {
                 let area = calculate_popup_area(f.area(), 25, 20);
 
                 f.render_widget(Clear, area);
 
                 let block = Block::default()
                     .title("TCP IP Address")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Cyan));
+
+                f.render_widget(block.clone(), area);
+
+                let inner_area = area.inner(ratatui::layout::Margin {
+                    vertical: 1,
+                    horizontal: 2,
+                });
+
+                let text_area = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Length(1),
+                        Constraint::Length(3),
+                        Constraint::Length(1),
+                        Constraint::Length(1),
+                        Constraint::Length(1),
+                    ])
+                    .split(inner_area);
+
+                let prompt =
+                    Paragraph::new("Enter IP Address:").style(Style::default().fg(Color::White));
+                f.render_widget(prompt, text_area[0]);
+                input.draw_in_popup(f, text_area[1]);
+
+                let instructions = Paragraph::new(Line::from(vec![Span::styled(
+                    "Hit `e` to start typing • Enter to submit • q to cancel",
+                    Style::default().fg(Color::DarkGray),
+                )]))
+                .alignment(Alignment::Center);
+                f.render_widget(instructions, text_area[4]);
+            }
+            _ => {
+                todo!("Not implemented for {:?}", screen_state)
+            }
+        }
+    }
+
+    pub fn draw_connection_logs(&mut self, f: &mut Frame, scrren_state: ScreenState) {
+        match scrren_state {
+            ScreenState::Connection => {
+                let area = calculate_popup_area(f.area(), 25, 20);
+
+                f.render_widget(Clear, area);
+
+                let block = Block::default()
+                    .title("Connection Logs")
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Cyan));
 
@@ -163,11 +217,10 @@ impl ConnectionPopup {
                     Style::default().fg(Color::DarkGray),
                 )]))
                 .alignment(Alignment::Center);
-                input.draw_in_popup(f, text_area[1]);
                 f.render_widget(instructions, text_area[4]);
             }
             _ => {
-                todo!("Not implemented for {:?}", screen_state)
+                todo!("Not implemented for {:?}", scrren_state)
             }
         }
     }
