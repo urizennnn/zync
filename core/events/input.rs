@@ -1,6 +1,7 @@
 use crate::core_mod::core::create_config;
 use crate::core_mod::widgets::SelectedItem;
 use crate::core_mod::widgets::TableWidget;
+use crate::screens::debug::DebugScreen;
 use crate::screens::error::error_widget::ErrorType;
 use crate::screens::error::error_widget::ErrorWidget;
 use crate::screens::home::Home;
@@ -227,7 +228,15 @@ pub fn handle_enter_key(
         }
     }
 }
-
+pub fn handle_d_key(home: &mut Home, debug: &mut DebugScreen) {
+    if home.current_screen == ScreenState::Debug {
+        home.current_screen = ScreenState::Sessions;
+        debug.push_line("Leaving Debug mode");
+    } else {
+        home.current_screen = ScreenState::Debug;
+        debug.push_line("Entering Debug mode");
+    }
+}
 pub fn handle_char_key(c: char, input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.enter_char(c);

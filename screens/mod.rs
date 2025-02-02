@@ -1,5 +1,6 @@
 pub mod connection_progress;
 pub mod dashboard;
+pub mod debug;
 pub mod error;
 pub mod help;
 pub mod home;

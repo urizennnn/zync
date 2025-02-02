@@ -1,4 +1,5 @@
 use super::dashboard::Data;
+use super::debug::DebugScreen;
 use super::session::Device;
 use super::{
     connection_progress::ConnectionProgress, help::help_popup::HelpPopup, host_type::HostTypePopup,
@@ -6,8 +7,8 @@ use super::{
 };
 use crate::core_mod::widgets::TableWidgetItemManager;
 use crate::events::input::{
-    handle_backspace_key, handle_char_key, handle_enter_key, handle_esc_key, handle_help_key,
-    handle_left_key, handle_n_key, handle_q_key, handle_right_key,
+    handle_backspace_key, handle_char_key, handle_d_key, handle_enter_key, handle_esc_key,
+    handle_help_key, handle_left_key, handle_n_key, handle_q_key, handle_right_key,
 };
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
@@ -54,6 +55,7 @@ impl Home {
         connection: Arc<Mutex<ConnectionPopup>>,
         error: Arc<Mutex<ErrorWidget>>,
         host: Arc<Mutex<HostTypePopup>>,
+        debug_screen: Arc<Mutex<DebugScreen>>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Event::Key(key) = event {
             match key.code {
@@ -127,6 +129,10 @@ impl Home {
 
                 // Handle regular character inputs
                 KeyCode::Char(c) => {
+                    if c == 'd' {
+                        let mut debug_screen = debug_screen.lock().unwrap();
+                        handle_d_key(self, &mut debug_screen);
+                    }
                     let mut input_box = input_box.lock().unwrap();
                     handle_char_key(c, &mut input_box);
                 }
@@ -158,6 +164,7 @@ impl Home {
         let error = Arc::new(Mutex::new(ErrorWidget::new()));
         let host = Arc::new(Mutex::new(HostTypePopup::new()));
         let mut session = Device::new_empty();
+        let debug_screen = Arc::new(Mutex::new(DebugScreen::new()));
         session
             .add_item(
                 Device {
@@ -222,6 +229,7 @@ impl Home {
                         input_box: input_box.clone(),
                         host: host.clone(),
                         progress: progress.clone(),
+                        debug_screen: debug_screen.clone(),
                     });
 
                     manage_state(self, state_snapshot, Arc::clone(&term)).unwrap();
@@ -257,6 +265,7 @@ impl Home {
                 connection.clone(),
                 error.clone(),
                 host.clone(),
+                debug_screen.clone(),
             )
             .unwrap();
         }

@@ -51,6 +51,10 @@ pub fn manage_state(
                     host.render(frame);
                 }
             }
+            ScreenState::Debug => {
+                let debug = state_snapshot.debug_screen.lock().unwrap();
+                debug.draw(frame, frame.area());
+            }
             _ => {}
         }
     })?;
