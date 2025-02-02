@@ -1,6 +1,6 @@
 use crate::screens::home::Home;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture},
+    event::{self, DisableMouseCapture},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::sync::{mpsc, Mutex};
@@ -54,7 +54,7 @@ pub async fn init_app() -> Result<(), Box<dyn Error>> {
     }));
 
     let mut stdout = stdout();
-    crossterm::execute!(stdout, EnableMouseCapture, EnterAlternateScreen)?;
+    crossterm::execute!(stdout, EnterAlternateScreen)?;
 
     let backend = Arc::new(Mutex::new(ratatui::init()));
 

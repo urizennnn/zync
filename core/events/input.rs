@@ -65,8 +65,8 @@ pub fn handle_n_key(
 
     if home.current_screen == ScreenState::Sessions {
         connection.visible = true;
-        home.show_popup = false;
-        home.show_api_popup = false;
+        // home.show_popup = false;
+        // home.show_api_popup = false;
         home.render_url_popup = false;
         input_box.input_mode = InputMode::Normal;
         unsafe { FLAG = false };
@@ -211,11 +211,18 @@ pub fn handle_enter_key(
                 error.set_val(e.to_string(), &mut ErrorType::Warning, "Ok".to_string());
                 home.error = true;
             }
+            // Reset lingering states after a config attempt:
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::Sessions;
             home.show_api_popup = false;
         }
         Err(err) => {
             error.set_val(err.to_string(), &mut ErrorType::Warning, "Ok".to_string());
             home.error = true;
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::Sessions;
         }
     }
 }
