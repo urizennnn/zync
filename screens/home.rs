@@ -1,51 +1,44 @@
-use super::dashboard::Data;
 use super::debug::DebugScreen;
-use super::session::Device;
-use super::{
-    connection_progress::ConnectionProgress, help::help_popup::HelpPopup, host_type::HostTypePopup,
-    popup::ApiPopup,
-};
-use crate::core_mod::widgets::TableWidgetItemManager;
+use super::host_type::HostTypePopup;
+use crate::core_mod::widgets::TableWidget;
 use crate::events::input::{
     handle_backspace_key, handle_char_key, handle_d_key, handle_enter_key, handle_esc_key,
     handle_help_key, handle_left_key, handle_n_key, handle_q_key, handle_right_key,
 };
+use crate::events::ui_update::UIUpdate;
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
-use crate::state::{manager::manage_state, state::ScreenState};
-use crate::{
-    core_mod::{core::check_config, widgets::TableWidget},
-    state::state::StateSnapshot,
-};
+use crate::state::state::ScreenState;
 use crossterm::event::{Event, KeyCode};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
-    DefaultTerminal,
 };
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::{error::Error, sync::mpsc};
+use tokio::sync::mpsc as tokio_mpsc;
 use tui_big_text::{BigText, BigTextBuilder};
-use tui_confirm_dialog::{ConfirmDialogState, Listener};
 
 pub struct Home {
     pub running: bool,
     pub show_popup: bool,
     pub render_url_popup: bool,
     pub show_api_popup: bool,
-    pub show_api_dialog: ConfirmDialogState,
+    pub show_api_dialog: tui_confirm_dialog::ConfirmDialogState,
     pub selected_button: usize,
-    pub popup_tx: mpsc::Sender<Listener>,
+    pub popup_tx: mpsc::Sender<tui_confirm_dialog::Listener>,
     pub current_screen: ScreenState,
-    pub popup_rx: mpsc::Receiver<Listener>,
-    pub popup_dialog: ConfirmDialogState,
+    pub popup_rx: mpsc::Receiver<tui_confirm_dialog::Listener>,
+    pub popup_dialog: tui_confirm_dialog::ConfirmDialogState,
     pub error: bool,
+    pub ui_update_tx: tokio_mpsc::Sender<UIUpdate>,
+    pub ui_update_rx: tokio_mpsc::Receiver<UIUpdate>,
+    pub popup_message: Option<String>,
 }
-
 impl Home {
     pub fn handle_event(
         &mut self,
@@ -152,77 +145,39 @@ impl Home {
 
     pub async fn run(
         &mut self,
-        term: Arc<Mutex<DefaultTerminal>>,
-        event_rx: mpsc::Receiver<Event>,
-    ) -> Result<(), Box<dyn Error>> {
-        let input_box = Arc::new(Mutex::new(InputBox::default()));
-        let progress = Arc::new(Mutex::new(ConnectionProgress::default()));
-        let help = Arc::new(Mutex::new(HelpPopup::new()));
+        term: Arc<Mutex<ratatui::DefaultTerminal>>,
+        event_rx: mpsc::Receiver<crossterm::event::Event>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let input_box = Arc::new(Mutex::new(crate::screens::popup::InputBox::default()));
+        let progress = Arc::new(Mutex::new(
+            crate::screens::connection_progress::ConnectionProgress::default(),
+        ));
+        let help = Arc::new(Mutex::new(
+            crate::screens::help::help_popup::HelpPopup::new(),
+        ));
         let table = Arc::new(Mutex::new(TableWidget::new()));
-        let connection = Arc::new(Mutex::new(ConnectionPopup::new()));
-        let mut api_popup = ApiPopup::new();
+        let connection = Arc::new(Mutex::new(
+            crate::screens::protocol_popup::ConnectionPopup::new(),
+        ));
+        let mut api_popup = crate::screens::popup::ApiPopup::new();
         let error = Arc::new(Mutex::new(ErrorWidget::new()));
         let host = Arc::new(Mutex::new(HostTypePopup::new()));
-        let mut session = Device::new_empty();
         let debug_screen = Arc::new(Mutex::new(DebugScreen::new()));
-        session
-            .add_item(
-                Device {
-                    files: Some(vec![
-                        Data {
-                            name: "File 1".to_string(),
-                            status: Line::from(Span::styled(
-                                "Not Sent",
-                                Style::default().fg(ratatui::style::Color::Red),
-                            )),
-                            destination: "Urizen".to_string(),
-                            time: "Just now".to_string(),
-                        },
-                        Data {
-                            name: "File 2".to_string(),
-                            status: Line::from(Span::styled(
-                                "Sending",
-                                Style::default().fg(ratatui::style::Color::Yellow),
-                            )),
-                            destination: "Urizen".to_string(),
-                            time: "10 mins ago".to_string(),
-                        },
-                    ]),
-                    name: "Urizen".to_string(),
-                    last_connection: super::session::Connection {
-                        total: "Just now".to_string(),
-                        format_date: "Just now".to_string(),
-                    },
-                    last_transfer: super::session::Transfer {
-                        status: "Not Sent".to_string(),
-                        size: "Not Sent".to_string(),
-                        name: "File 1".to_string(),
-                    },
-                    ip: "".to_string(),
-                },
-                table.clone(),
-            )
-            .await;
         while self.running {
-            {
-                if let Ok((selected_button, confirmed)) = self.popup_rx.try_recv() {
-                    match confirmed {
-                        Some(true) => {
-                            self.show_api_popup = selected_button == 0;
-                            self.render_url_popup = selected_button != 0;
-                            self.show_popup = false;
-                        }
-                        Some(false) => {
-                            self.show_popup = false;
-                        }
-                        None => {}
+            while let Ok(update) = self.ui_update_rx.try_recv() {
+                match update {
+                    UIUpdate::ShowPopup(msg) => {
+                        self.popup_message = Some(msg);
+                        self.show_popup = true;
+                    }
+                    UIUpdate::SwitchScreen(screen) => {
+                        self.current_screen = screen;
                     }
                 }
             }
-
-            match check_config() {
+            match crate::core_mod::core::check_config() {
                 Ok(_) => {
-                    let state_snapshot = Arc::new(StateSnapshot {
+                    let state_snapshot = Arc::new(crate::state::state::StateSnapshot {
                         table: table.clone(),
                         help: help.clone(),
                         connection: connection.clone(),
@@ -231,13 +186,11 @@ impl Home {
                         progress: progress.clone(),
                         debug_screen: debug_screen.clone(),
                     });
-
-                    manage_state(self, state_snapshot, Arc::clone(&term)).unwrap();
+                    crate::state::manager::manage_state(self, state_snapshot, term.clone())?;
                 }
                 Err(_) => {
                     let input_box_guard = input_box.lock();
                     let error_guard = error.lock();
-
                     term.lock().unwrap().draw(|f| {
                         let area = f.area();
                         self.render(area, f.buffer_mut());
@@ -256,7 +209,6 @@ impl Home {
                     })?;
                 }
             }
-
             let event = event_rx.recv().unwrap();
             self.handle_event(
                 event,
@@ -266,13 +218,10 @@ impl Home {
                 error.clone(),
                 host.clone(),
                 debug_screen.clone(),
-            )
-            .unwrap();
+            )?;
         }
-
         Ok(())
     }
-
     fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
         let text = BigTextBuilder::default()
             .pixel_size(tui_big_text::PixelSize::Quadrant)
@@ -327,18 +276,22 @@ impl Home {
 
     pub fn new() -> Self {
         let (tx, rx) = mpsc::channel();
+        let (ui_tx, ui_rx) = tokio_mpsc::channel(32);
         Self {
             current_screen: ScreenState::Sessions,
             error: false,
             show_api_popup: false,
-            show_api_dialog: ConfirmDialogState::default(),
+            show_api_dialog: tui_confirm_dialog::ConfirmDialogState::default(),
             running: true,
             show_popup: false,
             render_url_popup: false,
             selected_button: 1,
             popup_tx: tx,
             popup_rx: rx,
-            popup_dialog: ConfirmDialogState::default(),
+            popup_dialog: tui_confirm_dialog::ConfirmDialogState::default(),
+            ui_update_tx: ui_tx,
+            ui_update_rx: ui_rx,
+            popup_message: None,
         }
     }
 }

@@ -1,3 +1,5 @@
+use tcp_client::utils::get_ip::get_local_ip;
+
 use crate::core_mod::core::create_config;
 use crate::core_mod::widgets::SelectedItem;
 use crate::core_mod::widgets::TableWidget;
@@ -5,7 +7,6 @@ use crate::screens::debug::DebugScreen;
 use crate::screens::error::error_widget::ErrorType;
 use crate::screens::error::error_widget::ErrorWidget;
 use crate::screens::home::Home;
-use crate::screens::host_type;
 use crate::screens::host_type::HostTypePopup;
 use crate::screens::popup::InputBox;
 use crate::screens::popup::InputMode;
@@ -151,38 +152,37 @@ pub fn handle_enter_key(
     host: &mut HostTypePopup,
 ) {
     if home.show_popup {
-        if let Err(e) = home
+        let _ = home
             .popup_tx
-            .send((home.selected_button as u16, Some(true)))
-        {
-            eprintln!("Failed to send popup confirmation: {}", e);
-        }
+            .send((home.selected_button as u16, Some(true)));
         home.show_popup = false;
         return;
     }
-
     if table.active {
-        if let Some(selected) = table.enter() {
-            if let SelectedItem::Device(device) = selected {
-                if let Some(files) = device.files.clone() {
-                    for file in files {
-                        table.add_item(
-                            file.name.clone(),
-                            file.status.clone(),
-                            file.destination.clone(),
-                            file.time.clone(),
-                        );
+        match table.enter() {
+            Some(selected) => match selected {
+                SelectedItem::Device(device) => {
+                    if let Some(files) = device.files.clone() {
+                        for file in files {
+                            table.add_item(
+                                file.name.clone(),
+                                file.status.clone(),
+                                file.destination.clone(),
+                                file.time.clone(),
+                            );
+                        }
                     }
                 }
-            }
+                _ => (),
+            },
+            _ => (),
         }
         home.current_screen = ScreenState::Transfer;
         return;
     }
-
     if connection.visible {
         let selected = connection.return_selected();
-        if selected == ConnectionType::TCP {
+        if selected == Some(ConnectionType::TCP) {
             connection.input_popup = true;
             connection.visible = false;
             host.visible = true;
@@ -190,10 +190,9 @@ pub fn handle_enter_key(
         }
         return;
     }
-
     if host.visible {
         let selected = host.return_selected();
-        if selected == host_type::HostType::SENDER {
+        if selected == crate::screens::host_type::HostType::SENDER {
             connection.logs = true;
             connection.visible = false;
             host.visible = false;
@@ -206,7 +205,94 @@ pub fn handle_enter_key(
         }
         return;
     }
-
+    if home.current_screen == ScreenState::TcpServer {
+        if let Ok(user_input) = input_box.submit_message() {
+            if let Ok(port) = user_input.parse::<u16>() {
+                if !(1024..=0xFFFF).contains(&port) {
+                    error.set_val(
+                        "Port must be between 1024 and 65535".to_string(),
+                        &mut ErrorType::Warning,
+                        "Ok".to_string(),
+                    );
+                    home.error = true;
+                    return;
+                }
+                let ui_tx = home.ui_update_tx.clone();
+                tokio::spawn(async move {
+                    match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await {
+                        Ok(listener) => {
+                            let local_ip = get_local_ip().unwrap_or("0.0.0.0".to_string());
+                            let msg =
+                                format!("Connection Opened\nYour IP: {}\nPort: {}", local_ip, port);
+                            ui_tx
+                                .send(crate::events::ui_update::UIUpdate::ShowPopup(msg))
+                                .await
+                                .unwrap();
+                            if let Ok((_, _)) = listener.accept().await {
+                                ui_tx
+                                    .send(crate::events::ui_update::UIUpdate::SwitchScreen(
+                                        ScreenState::Sessions,
+                                    ))
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                        Err(e) => {
+                            ui_tx
+                                .send(crate::events::ui_update::UIUpdate::ShowPopup(format!(
+                                    "Error opening port: {}",
+                                    e
+                                )))
+                                .await
+                                .unwrap();
+                        }
+                    }
+                });
+            } else {
+                error.set_val(
+                    "Invalid port number".to_string(),
+                    &mut ErrorType::Warning,
+                    "Ok".to_string(),
+                );
+                home.error = true;
+            }
+        }
+        return;
+    }
+    if home.current_screen == ScreenState::TcpClient {
+        if let Ok(user_input) = input_box.submit_message() {
+            let target = user_input;
+            let ui_tx = home.ui_update_tx.clone();
+            tokio::spawn(async move {
+                match tokio::net::TcpStream::connect(format!("{}:{}", target, 8080)).await {
+                    Ok(mut _stream) => {
+                        ui_tx
+                            .send(crate::events::ui_update::UIUpdate::ShowPopup(
+                                "Connection Opened".to_string(),
+                            ))
+                            .await
+                            .unwrap();
+                        ui_tx
+                            .send(crate::events::ui_update::UIUpdate::SwitchScreen(
+                                ScreenState::Sessions,
+                            ))
+                            .await
+                            .unwrap();
+                    }
+                    Err(e) => {
+                        ui_tx
+                            .send(crate::events::ui_update::UIUpdate::ShowPopup(format!(
+                                "Error connecting: {}",
+                                e
+                            )))
+                            .await
+                            .unwrap();
+                    }
+                }
+            });
+        }
+        return;
+    }
     match input_box.submit_message() {
         Ok(api) => {
             if let Err(e) = create_config(&api) {
