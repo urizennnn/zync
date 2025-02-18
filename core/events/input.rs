@@ -1,4 +1,3 @@
-use crate::core_mod::event::SyncTrait;
 use crate::core_mod::widgets::{SelectedItem, TableWidget};
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
@@ -167,7 +166,7 @@ pub fn handle_enter_key(
 
     if table.active {
         if let Some(selected) = table.enter() {
-            if let SelectedItem::Device(device) = selected {
+            if let crate::core_mod::widgets::SelectedItem::Device(device) = selected {
                 if let Some(files) = device.files.clone() {
                     for file in files {
                         table.add_item(
@@ -227,36 +226,23 @@ pub fn handle_enter_key(
                     return;
                 }
                 {
-                    let sender = progress.lock().unwrap().get_event_sender().clone_sender();
-                    sender
-                        .send(crate::state::state::ConnectionState::Connecting)
-                        .ok();
+                    // Directly update the progress state to Connecting
+                    let mut prog = progress.lock().unwrap();
+                    prog.state = crate::state::state::ConnectionState::Connecting;
                 }
                 std::thread::spawn({
                     let progress_clone = progress.clone();
                     move || match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port)) {
                         Ok((_socket, _addr)) => {
-                            let sender = progress_clone
-                                .lock()
-                                .unwrap()
-                                .get_event_sender()
-                                .clone_sender();
-                            sender
-                                .send(crate::state::state::ConnectionState::Connected)
-                                .ok();
+                            let mut prog = progress_clone.lock().unwrap();
+                            prog.state = crate::state::state::ConnectionState::Connected;
                         }
                         Err(e) => {
-                            let sender = progress_clone
-                                .lock()
-                                .unwrap()
-                                .get_event_sender()
-                                .clone_sender();
-                            sender
-                                .send(crate::state::state::ConnectionState::Failed(format!(
-                                    "Error opening port: {}",
-                                    e
-                                )))
-                                .ok();
+                            let mut prog = progress_clone.lock().unwrap();
+                            prog.state = crate::state::state::ConnectionState::Failed(format!(
+                                "Error opening port: {}",
+                                e
+                            ));
                         }
                     }
                 });
@@ -287,36 +273,22 @@ pub fn handle_enter_key(
                 format!("{}:{}", user_input, 8080)
             };
             {
-                let sender = progress.lock().unwrap().get_event_sender().clone_sender();
-                sender
-                    .send(crate::state::state::ConnectionState::Connecting)
-                    .ok();
+                let mut prog = progress.lock().unwrap();
+                prog.state = crate::state::state::ConnectionState::Connecting;
             }
             std::thread::spawn({
                 let progress_clone = progress.clone();
                 move || match connect_sync(&address) {
                     Ok(_stream) => {
-                        let sender = progress_clone
-                            .lock()
-                            .unwrap()
-                            .get_event_sender()
-                            .clone_sender();
-                        sender
-                            .send(crate::state::state::ConnectionState::Connected)
-                            .ok();
+                        let mut prog = progress_clone.lock().unwrap();
+                        prog.state = crate::state::state::ConnectionState::Connected;
                     }
                     Err(e) => {
-                        let sender = progress_clone
-                            .lock()
-                            .unwrap()
-                            .get_event_sender()
-                            .clone_sender();
-                        sender
-                            .send(crate::state::state::ConnectionState::Failed(format!(
-                                "Error connecting: {}",
-                                e
-                            )))
-                            .ok();
+                        let mut prog = progress_clone.lock().unwrap();
+                        prog.state = crate::state::state::ConnectionState::Failed(format!(
+                            "Error connecting: {}",
+                            e
+                        ));
                     }
                 }
             });

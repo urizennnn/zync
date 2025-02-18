@@ -23,8 +23,9 @@ pub fn manage_state(
         }
         ScreenState::Transfer => {
             let mut table = state_snapshot.table.lock().unwrap();
+            let progress = state_snapshot.progress.clone();
             let mut help = state_snapshot.help.lock().unwrap();
-            table_ui(frame, &mut table);
+            table_ui(frame, &mut table, progress);
             if table.help {
                 help.draw_dashboard_help(frame);
             }
