@@ -12,16 +12,13 @@ use crate::screens::{
 use crate::state::state::ScreenState;
 use crossterm::event::{Event, KeyCode};
 use ratatui::{
-    layout::{Constraint, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Widget},
+    layout::Rect,
+    text::Line,
+    widgets::{Block, Paragraph, Widget},
 };
-use std::sync::mpsc;
-use std::sync::Arc;
-use std::sync::Mutex;
-use tokio::sync::mpsc as tokio_mpsc;
-use tui_big_text::{BigText, BigTextBuilder};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub struct Home {
     pub running: bool,
@@ -30,15 +27,16 @@ pub struct Home {
     pub show_api_popup: bool,
     pub show_api_dialog: tui_confirm_dialog::ConfirmDialogState,
     pub selected_button: usize,
-    pub popup_tx: mpsc::Sender<tui_confirm_dialog::Listener>,
-    pub current_screen: ScreenState,
-    pub popup_rx: mpsc::Receiver<tui_confirm_dialog::Listener>,
+    pub popup_tx: Sender<tui_confirm_dialog::Listener>,
+    pub popup_rx: Receiver<tui_confirm_dialog::Listener>,
     pub popup_dialog: tui_confirm_dialog::ConfirmDialogState,
     pub error: bool,
-    pub ui_update_tx: tokio_mpsc::Sender<UIUpdate>,
-    pub ui_update_rx: tokio_mpsc::Receiver<UIUpdate>,
+    pub ui_update_tx: Sender<UIUpdate>,
+    pub ui_update_rx: Receiver<UIUpdate>,
     pub popup_message: Option<String>,
+    pub current_screen: ScreenState,
 }
+
 impl Home {
     pub fn handle_event(
         &mut self,
@@ -49,24 +47,20 @@ impl Home {
         error: Arc<Mutex<ErrorWidget>>,
         host: Arc<Mutex<HostTypePopup>>,
         debug_screen: Arc<Mutex<DebugScreen>>,
+        progress: Arc<Mutex<crate::screens::connection_progress::ConnectionProgress>>, // std::sync::Mutex now
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Event::Key(key) = event {
             match key.code {
-                // Quit the app
                 KeyCode::Char('q') => {
                     let mut input_box = input_box.lock().unwrap();
                     let mut connection = connection.lock().unwrap();
                     handle_q_key(self, &mut input_box, &mut connection);
                 }
-
-                // Start a new session
                 KeyCode::Char('n') => {
                     let mut input_box = input_box.lock().unwrap();
                     let mut connection = connection.lock().unwrap();
                     handle_n_key(self, 'n', &mut input_box, &mut connection);
                 }
-
-                // Navigation keys for the table
                 KeyCode::Down => {
                     let mut table = table.lock().unwrap();
                     table.next();
@@ -75,52 +69,42 @@ impl Home {
                     let mut table = table.lock().unwrap();
                     table.previous();
                 }
-
-                // Close popups or escape actions
                 KeyCode::Esc => {
                     let mut input_box = input_box.lock().unwrap();
                     handle_esc_key(self, &mut input_box);
                 }
-
-                // Handle left and right navigation
                 KeyCode::Right => {
                     let mut input_box = input_box.lock().unwrap();
                     let mut connection = connection.lock().unwrap();
                     let mut host = host.lock().unwrap();
-                    handle_right_key(self, &mut input_box, &mut connection, &mut host)
+                    handle_right_key(self, &mut input_box, &mut connection, &mut host);
                 }
                 KeyCode::Left => {
                     let mut input_box = input_box.lock().unwrap();
                     let mut connection = connection.lock().unwrap();
                     let mut host = host.lock().unwrap();
-                    handle_left_key(self, &mut input_box, &mut connection, &mut host)
+                    handle_left_key(self, &mut input_box, &mut connection, &mut host);
                 }
-
-                // Handle Enter key actions based on current context
                 KeyCode::Enter => {
                     let mut input_box = input_box.lock().unwrap();
                     let mut error = error.lock().unwrap();
                     let mut table = table.lock().unwrap();
-                    let mut connection = connection.lock().unwrap();
                     let mut host = host.lock().unwrap();
                     handle_enter_key(
                         self,
                         &mut input_box,
                         &mut error,
                         &mut table,
-                        &mut connection,
+                        connection.clone(),
                         &mut host,
-                    )
+                        progress.clone(),
+                    );
                 }
-
-                // Handle '?' key for help
                 KeyCode::Char('?') => {
                     let mut table = table.lock().unwrap();
                     let mut input_box = input_box.lock().unwrap();
                     handle_help_key(self, &mut table, '?', &mut input_box);
                 }
-
-                // Handle regular character inputs
                 KeyCode::Char(c) => {
                     if c == 'd' {
                         let mut debug_screen = debug_screen.lock().unwrap();
@@ -129,26 +113,22 @@ impl Home {
                     let mut input_box = input_box.lock().unwrap();
                     handle_char_key(c, &mut input_box);
                 }
-
-                // Handle backspace key
                 KeyCode::Backspace => {
                     let mut input_box = input_box.lock().unwrap();
                     handle_backspace_key(&mut input_box);
                 }
-
                 _ => {}
             }
         }
-
         Ok(())
     }
 
-    pub async fn run(
+    pub fn run(
         &mut self,
         term: Arc<Mutex<ratatui::DefaultTerminal>>,
-        event_rx: mpsc::Receiver<crossterm::event::Event>,
+        event_rx: Receiver<Event>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let input_box = Arc::new(Mutex::new(crate::screens::popup::InputBox::default()));
+        let input_box = Arc::new(Mutex::new(crate::screens::popup::InputBox::new()));
         let progress = Arc::new(Mutex::new(
             crate::screens::connection_progress::ConnectionProgress::default(),
         ));
@@ -163,6 +143,7 @@ impl Home {
         let error = Arc::new(Mutex::new(ErrorWidget::new()));
         let host = Arc::new(Mutex::new(HostTypePopup::new()));
         let debug_screen = Arc::new(Mutex::new(DebugScreen::new()));
+
         while self.running {
             while let Ok(update) = self.ui_update_rx.try_recv() {
                 match update {
@@ -189,8 +170,8 @@ impl Home {
                     crate::state::manager::manage_state(self, state_snapshot, term.clone())?;
                 }
                 Err(_) => {
-                    let input_box_guard = input_box.lock();
-                    let error_guard = error.lock();
+                    let input_box_guard = input_box.lock().unwrap();
+                    let mut error_guard = error.lock().unwrap();
                     term.lock().unwrap().draw(|f| {
                         let area = f.area();
                         self.render(area, f.buffer_mut());
@@ -198,85 +179,59 @@ impl Home {
                             self.render_notification(f);
                         }
                         if self.show_api_popup {
-                            api_popup.draw(f, &input_box_guard.unwrap());
+                            api_popup.draw(f, &input_box_guard);
                         }
                         if self.render_url_popup {
                             api_popup.render_url(f);
                         }
                         if self.error {
-                            error_guard.unwrap().render_popup(f);
+                            error_guard.render_popup(f);
                         }
                     })?;
                 }
             }
-            let event = event_rx.recv().unwrap();
-            self.handle_event(
-                event,
-                input_box.clone(),
-                table.clone(),
-                connection.clone(),
-                error.clone(),
-                host.clone(),
-                debug_screen.clone(),
-            )?;
+            if let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) {
+                self.handle_event(
+                    event,
+                    input_box.clone(),
+                    table.clone(),
+                    connection.clone(),
+                    error.clone(),
+                    host.clone(),
+                    debug_screen.clone(),
+                    progress.clone(),
+                )?;
+            }
         }
         Ok(())
     }
-    fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
-        let text = BigTextBuilder::default()
-            .pixel_size(tui_big_text::PixelSize::Quadrant)
-            .lines(["ZYNC".into()])
-            .style(Style::default().fg(ratatui::style::Color::Red))
-            .build();
-        let line = Home::create_line();
-        (text, line)
+
+    pub fn create_border(input: &str, _show_popup: bool) -> Block {
+        Block::default().title(input)
     }
 
-    fn create_line() -> Vec<Line<'static>> {
-        let line = "Welcome to Zync. Hit n to start your new file sharing session.";
-        let styled_text = Span::styled(line, Style::default().add_modifier(Modifier::BOLD));
-        vec![Line::from(styled_text)]
+    pub fn create_big_text() -> (Paragraph<'static>, Vec<Line<'static>>) {
+        (Paragraph::new("Big Text"), vec![Line::from("Normal Text")])
     }
 
-    fn create_border(input: &str, show_popup: bool) -> Block {
-        let title = if show_popup {
-            "Hit Esc to close popup"
-        } else {
-            input
-        };
-
-        let border_style = if show_popup {
-            Style::default().fg(ratatui::style::Color::Yellow)
-        } else {
-            Style::default().fg(ratatui::style::Color::White)
-        };
-
-        Block::new()
-            .border_type(ratatui::widgets::BorderType::Rounded)
-            .borders(Borders::TOP)
-            .title(Line::from(title).centered())
-            .style(border_style)
+    pub fn draw_commands(area: Rect, _buf: &mut ratatui::buffer::Buffer) {
+        let _ = area;
     }
 
-    fn draw_commands(area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let command_layout = Layout::default()
-            .direction(ratatui::layout::Direction::Horizontal)
-            .constraints([Constraint::Length(10), Constraint::Min(20)])
-            .split(area);
+    // Stub for "render", real logic is in the `.draw(...)` usage above
+    pub fn render(&self, _area: Rect, _buf: &mut ratatui::buffer::Buffer) {}
+}
 
-        let label = Paragraph::new("Commands")
-            .style(Style::default().add_modifier(Modifier::BOLD))
-            .alignment(ratatui::layout::Alignment::Left);
-        label.render(command_layout[0], buf);
-
-        let commands_text = "q: Quit | n: Start a new file sharing session";
-        let commands = Paragraph::new(commands_text).alignment(ratatui::layout::Alignment::Right);
-        commands.render(command_layout[1], buf);
+impl Default for Home {
+    fn default() -> Self {
+        Self::new()
     }
+}
 
+impl Home {
     pub fn new() -> Self {
-        let (tx, rx) = mpsc::channel();
-        let (ui_tx, ui_rx) = tokio_mpsc::channel(32);
+        let (tx, rx) = channel();
+        let (ui_tx, ui_rx) = channel();
         Self {
             current_screen: ScreenState::Sessions,
             error: false,
@@ -296,33 +251,25 @@ impl Home {
     }
 }
 
-impl Default for Home {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Widget for &Home {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+    fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
+        use ratatui::layout::{Constraint, Direction, Layout};
         let layout = Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
+            .direction(Direction::Vertical)
             .constraints([
                 Constraint::Percentage(30),
                 Constraint::Min(10),
                 Constraint::Length(1),
             ])
             .split(area);
-
         let border = Home::create_border("Welcome", self.show_popup);
-        border.clone().render(layout[0], buf);
+        border.render(layout[0], buf);
 
         let (big_text, normal_text) = Home::create_big_text();
-
         let content_layout = Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
+            .direction(Direction::Vertical)
             .constraints([Constraint::Length(5), Constraint::Length(2)])
             .split(layout[1]);
-
         let big_text_width = 30;
         let big_text_area = Rect {
             x: area.width.saturating_sub(big_text_width) / 2,

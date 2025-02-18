@@ -32,23 +32,35 @@ pub mod help_popup {
             .centered();
 
             let keybindings = vec![
-        Line::from(vec![
-            Span::styled("q", Style::default().fg(Color::LightBlue)),
-            Span::styled(": This keybind is used to quit the application", Style::default().fg(Color::Gray)),
-        ]),
-        Line::from(vec![
-            Span::styled("n", Style::default().fg(Color::LightBlue)),
-            Span::styled(": This keybind is used to start a new file sharing session or connect to over a protocol", Style::default().fg(Color::Gray)),
-        ]),
-        Line::from(vec![
-            Span::styled("s", Style::default().fg(Color::LightBlue)),
-            Span::styled(": This keybind is used to stop the current file sharing session", Style::default().fg(Color::Gray)),
-        ]),
-        Line::from(vec![
-            Span::styled("Esc", Style::default().fg(Color::LightBlue)),
-            Span::styled(": This keybind is used to close any open popup menu", Style::default().fg(Color::Gray)),
-        ]),
-    ];
+                Line::from(vec![
+                    Span::styled("q", Style::default().fg(Color::LightBlue)),
+                    Span::styled(
+                        ": This keybind is used to quit the application",
+                        Style::default().fg(Color::Gray),
+                    ),
+                ]),
+                Line::from(vec![
+                    Span::styled("n", Style::default().fg(Color::LightBlue)),
+                    Span::styled(
+                        ": This keybind is used to start a new file sharing session or connect to over a protocol",
+                        Style::default().fg(Color::Gray),
+                    ),
+                ]),
+                Line::from(vec![
+                    Span::styled("s", Style::default().fg(Color::LightBlue)),
+                    Span::styled(
+                        ": This keybind is used to stop the current file sharing session",
+                        Style::default().fg(Color::Gray),
+                    ),
+                ]),
+                Line::from(vec![
+                    Span::styled("Esc", Style::default().fg(Color::LightBlue)),
+                    Span::styled(
+                        ": This keybind is used to close any open popup menu",
+                        Style::default().fg(Color::Gray),
+                    ),
+                ]),
+            ];
 
             let content = vec![Line::from(""), topic, Line::from("")]
                 .into_iter()

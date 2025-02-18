@@ -11,7 +11,13 @@ use tokio::{io::AsyncReadExt, io::AsyncWriteExt, net::TcpListener, net::TcpStrea
 use whoami::username;
 
 pub static USER: Lazy<String> = Lazy::new(|| username().to_string());
-
+pub fn connect_sync(address: &str) -> Result<TcpStream, Box<dyn Error>> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        let stream = TcpStream::connect(address).await?;
+        Ok(stream)
+    })
+}
 pub async fn listen() -> Result<TcpListener, Box<dyn std::error::Error + Send>> {
     match TcpListener::bind("0.0.0.0:4239").await {
         Ok(listener) => Ok(listener),

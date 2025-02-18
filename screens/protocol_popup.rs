@@ -1,7 +1,7 @@
 use crate::screens::popup::InputBox;
 use crate::utils::calculate::{calculate_popup_area, centered_rect};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Tabs};
 use ratatui::Frame;
@@ -22,6 +22,7 @@ pub struct ConnectionPopup {
     pub logs: bool,
     pub input_popup: bool,
     pub mode: ConnectionInputMode,
+    pub log: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromRepr, Display, EnumIter)]
@@ -52,6 +53,7 @@ impl ConnectionPopup {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
+            log: String::new(),
             returned_val: None,
             logs: false,
             input_popup: false,

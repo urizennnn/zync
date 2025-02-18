@@ -266,7 +266,6 @@ pub fn draw_session_table_ui(f: &mut Frame, table: &mut TableWidget) {
         .alignment(Alignment::Center);
     f.render_widget(top_right_text, top_chunks[1]);
 
-    // We assume `table` is already a mutable reference to the inner TableWidget.
     let mut table_state = std::mem::take(&mut table.state);
     let stateful_table = session_table_ui(table);
     f.render_stateful_widget(stateful_table, main_chunks[0], &mut table_state);

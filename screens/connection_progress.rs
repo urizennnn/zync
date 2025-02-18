@@ -1,5 +1,5 @@
 use crate::{
-    core_mod::event::{AsyncEvent, NewTrait},
+    core_mod::event::{SyncEvent, SyncTrait},
     state::state::ConnectionState,
     utils::calculate::calculate_popup_area,
 };
@@ -13,7 +13,7 @@ use ratatui::{
 #[derive(Debug)]
 pub struct ConnectionProgress {
     state: ConnectionState,
-    event: AsyncEvent<ConnectionState>,
+    event: SyncEvent<ConnectionState>,
 }
 
 impl Default for ConnectionProgress {
@@ -26,12 +26,12 @@ impl ConnectionProgress {
     pub fn new() -> Self {
         Self {
             state: ConnectionState::Connecting,
-            event: AsyncEvent::new(),
+            event: SyncEvent::new(),
         }
     }
 
-    pub async fn update(&mut self) {
-        if let Some(new_state) = self.event.recv().await {
+    pub fn update(&mut self) {
+        if let Some(new_state) = self.event.recv() {
             self.state = new_state;
         }
     }
@@ -44,14 +44,12 @@ impl ConnectionProgress {
             .title("Connection Progress")
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Cyan));
-
         f.render_widget(block.clone(), area);
 
         let inner_area = area.inner(ratatui::layout::Margin {
             vertical: 1,
             horizontal: 2,
         });
-
         let text_area = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -77,22 +75,7 @@ impl ConnectionProgress {
         f.render_widget(paragraph, text_area[0]);
     }
 
-    pub fn get_event_sender(&self) -> &AsyncEvent<ConnectionState> {
+    pub fn get_event_sender(&self) -> &SyncEvent<ConnectionState> {
         &self.event
-    }
-}
-
-// Example usage in a connection handler
-async fn handle_connection(event: &AsyncEvent<ConnectionState>) {
-    // Update connection states
-    event.send(ConnectionState::Connecting).await;
-
-    // Simulate some connection work
-    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-    // Check connection result
-    match /* connection result */ true {
-        true => event.send(ConnectionState::Connected).await,
-        false => event.send(ConnectionState::Failed("Connection failed".to_string())).await,
     }
 }

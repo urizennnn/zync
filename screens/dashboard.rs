@@ -126,7 +126,7 @@ fn draw_table(table: &TableWidget) -> ratatui::widgets::Table<'_> {
     });
 
     let bar = " █ ";
-    let t = Table::new(
+    Table::new(
         rows,
         [
             Constraint::Length(table.longest_item_lens[0]),
@@ -144,6 +144,5 @@ fn draw_table(table: &TableWidget) -> ratatui::widgets::Table<'_> {
         "".into(),
     ]))
     .bg(table.colors.buffer_bg)
-    .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
-    t
+    .highlight_spacing(ratatui::widgets::HighlightSpacing::Always)
 }
