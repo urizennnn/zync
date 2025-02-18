@@ -1,12 +1,15 @@
 use crate::core_mod::event::SyncTrait;
+use crate::core_mod::widgets::SelectedItem;
 use crate::core_mod::widgets::TableWidget;
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
+use crate::screens::host_type::HostType;
 use crate::screens::host_type::HostTypePopup;
 use crate::screens::popup::InputBox;
 use crate::screens::popup::InputMode;
 use crate::screens::popup::FLAG;
 use crate::screens::protocol_popup::ConnectionPopup;
+use crate::screens::protocol_popup::ConnectionType;
 use crate::state::state::ScreenState;
 use std::sync::Arc;
 use tcp_client::app::connect_sync;
@@ -152,27 +155,63 @@ pub fn handle_enter_key(
     host: &mut HostTypePopup,
     progress: Arc<std::sync::Mutex<crate::screens::connection_progress::ConnectionProgress>>,
 ) {
+    let mut connection = connection.lock().unwrap();
     if home.show_popup {
-        let _ = home
+        if let Err(e) = home
             .popup_tx
-            .send((home.selected_button as u16, Some(true)));
+            .send((home.selected_button as u16, Some(true)))
+        {
+            eprintln!("Failed to send popup confirmation: {}", e);
+        }
         home.show_popup = false;
         return;
     }
+
     if table.active {
         if let Some(selected) = table.enter() {
-            match selected {
-                crate::core_mod::widgets::SelectedItem::Device(_device) => {
-                    // handle device selection
+            if let SelectedItem::Device(device) = selected {
+                if let Some(files) = device.files.clone() {
+                    for file in files {
+                        table.add_item(
+                            file.name.clone(),
+                            file.status.clone(),
+                            file.destination.clone(),
+                            file.time.clone(),
+                        );
+                    }
                 }
-                _ => {}
             }
         }
         home.current_screen = ScreenState::Transfer;
         return;
     }
 
-    // If user typed "server" scenario:
+    if connection.visible {
+        let selected = connection.return_selected();
+        if selected == Some(ConnectionType::TCP) {
+            connection.input_popup = true;
+            connection.visible = false;
+            host.visible = true;
+            home.current_screen = ScreenState::TCP;
+        }
+        return;
+    }
+
+    if host.visible {
+        let selected = host.return_selected();
+        if selected == HostType::SENDER {
+            connection.logs = true;
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::TcpServer;
+        } else {
+            connection.input_popup = true;
+            connection.visible = false;
+            host.visible = false;
+            home.current_screen = ScreenState::TcpClient;
+        }
+        return;
+    }
     if home.current_screen == ScreenState::TcpServer {
         if let Ok(user_input) = input_box.submit_message() {
             if let Ok(port) = user_input.parse::<u16>() {
@@ -249,7 +288,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // If user typed "client" scenario:
     if home.current_screen == ScreenState::TcpClient {
         if let Ok(user_input) = input_box.submit_message() {
             let address = if user_input.contains(':') {
@@ -307,7 +345,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // Otherwise, handle typed API key scenario:
     match input_box.submit_message() {
         Ok(api) => {
             if let Err(e) = crate::core_mod::core::create_config(&api) {
@@ -318,7 +355,7 @@ pub fn handle_enter_key(
                 );
                 home.error = true;
             }
-            connection.lock().unwrap().visible = false;
+            connection.visible = false;
             host.visible = false;
             home.show_api_popup = false;
             home.show_popup = false;
@@ -331,7 +368,7 @@ pub fn handle_enter_key(
                 "Ok".to_string(),
             );
             home.error = true;
-            connection.lock().unwrap().visible = false;
+            connection.visible = false;
             host.visible = false;
             home.current_screen = ScreenState::Sessions;
         }
