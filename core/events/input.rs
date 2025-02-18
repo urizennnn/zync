@@ -1,17 +1,14 @@
 use crate::core_mod::event::SyncTrait;
-use crate::core_mod::widgets::SelectedItem;
-use crate::core_mod::widgets::TableWidget;
+use crate::core_mod::widgets::{SelectedItem, TableWidget};
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
-use crate::screens::host_type::HostType;
-use crate::screens::host_type::HostTypePopup;
-use crate::screens::popup::InputBox;
-use crate::screens::popup::InputMode;
-use crate::screens::popup::FLAG;
-use crate::screens::protocol_popup::ConnectionPopup;
-use crate::screens::protocol_popup::ConnectionType;
+use crate::screens::host_type::{HostType, HostTypePopup};
+use crate::screens::popup::{InputBox, InputMode, FLAG};
+use crate::screens::protocol_popup::{ConnectionPopup, ConnectionType};
 use crate::state::state::ScreenState;
 use std::sync::Arc;
+
+// Removed references to "TcpLogs"
 use tcp_client::app::connect_sync;
 use tcp_server::tcp::tcp::TCP;
 
@@ -38,11 +35,9 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
     } else if connection.input_popup {
         connection.input_popup = false;
         home.current_screen = ScreenState::Sessions;
-    }
-    if home.current_screen == ScreenState::TcpServer {
+    } else if home.current_screen == ScreenState::TcpServer {
         home.current_screen = ScreenState::Sessions;
-    }
-    if home.current_screen == ScreenState::Transfer {
+    } else if home.current_screen == ScreenState::Transfer {
         home.current_screen = ScreenState::Sessions;
     } else {
         home.running = false;
@@ -79,8 +74,11 @@ pub fn handle_n_key(
 
 pub fn handle_esc_key(home: &mut Home, input_box: &mut InputBox) {
     match home.current_screen {
-        ScreenState::TcpLogs => {
-            home.current_screen = ScreenState::Connection;
+        ScreenState::TcpServer => {
+            home.current_screen = ScreenState::Sessions;
+        }
+        ScreenState::TcpClient => {
+            home.current_screen = ScreenState::Sessions;
         }
         ScreenState::Connection => {
             home.current_screen = ScreenState::TCP;
@@ -151,11 +149,11 @@ pub fn handle_enter_key(
     input_box: &mut InputBox,
     error: &mut crate::screens::error::error_widget::ErrorWidget,
     table: &mut TableWidget,
-    connection: Arc<std::sync::Mutex<ConnectionPopup>>,
+    connection_arc: Arc<std::sync::Mutex<ConnectionPopup>>,
     host: &mut HostTypePopup,
     progress: Arc<std::sync::Mutex<crate::screens::connection_progress::ConnectionProgress>>,
 ) {
-    let mut connection = connection.lock().unwrap();
+    let mut connection = connection_arc.lock().unwrap();
     if home.show_popup {
         if let Err(e) = home
             .popup_tx
@@ -186,6 +184,7 @@ pub fn handle_enter_key(
         return;
     }
 
+    // If the main popup is open
     if connection.visible {
         let selected = connection.return_selected();
         if selected == Some(ConnectionType::TCP) {
@@ -197,6 +196,7 @@ pub fn handle_enter_key(
         return;
     }
 
+    // If the HostType popup is open
     if host.visible {
         let selected = host.return_selected();
         if selected == HostType::SENDER {
@@ -212,6 +212,8 @@ pub fn handle_enter_key(
         }
         return;
     }
+
+    // --- Server port logic ---
     if home.current_screen == ScreenState::TcpServer {
         if let Ok(user_input) = input_box.submit_message() {
             if let Ok(port) = user_input.parse::<u16>() {
@@ -230,25 +232,17 @@ pub fn handle_enter_key(
                         .send(crate::state::state::ConnectionState::Connecting)
                         .ok();
                 }
-                let ui_tx = home.ui_update_tx.clone();
-                let progress_clone = progress.clone();
-                std::thread::spawn(move || {
-                    match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port)) {
+                std::thread::spawn({
+                    let progress_clone = progress.clone();
+                    move || match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port)) {
                         Ok((_socket, _addr)) => {
-                            {
-                                let sender = progress_clone
-                                    .lock()
-                                    .unwrap()
-                                    .get_event_sender()
-                                    .clone_sender();
-                                sender
-                                    .send(crate::state::state::ConnectionState::Connected)
-                                    .ok();
-                            }
-                            ui_tx
-                                .send(crate::events::ui_update::UIUpdate::SwitchScreen(
-                                    ScreenState::TcpLogs,
-                                ))
+                            let sender = progress_clone
+                                .lock()
+                                .unwrap()
+                                .get_event_sender()
+                                .clone_sender();
+                            sender
+                                .send(crate::state::state::ConnectionState::Connected)
                                 .ok();
                         }
                         Err(e) => {
@@ -263,14 +257,10 @@ pub fn handle_enter_key(
                                     e
                                 )))
                                 .ok();
-                            ui_tx
-                                .send(crate::events::ui_update::UIUpdate::SwitchScreen(
-                                    ScreenState::TcpLogs,
-                                ))
-                                .ok();
                         }
                     }
                 });
+
                 input_box.input.clear();
                 input_box.reset_cursor();
                 unsafe {
@@ -288,6 +278,7 @@ pub fn handle_enter_key(
         return;
     }
 
+    // --- Client address logic ---
     if home.current_screen == ScreenState::TcpClient {
         if let Ok(user_input) = input_box.submit_message() {
             let address = if user_input.contains(':') {
@@ -301,11 +292,9 @@ pub fn handle_enter_key(
                     .send(crate::state::state::ConnectionState::Connecting)
                     .ok();
             }
-            let ui_tx = home.ui_update_tx.clone();
-            let progress_clone = progress.clone();
-            std::thread::spawn(move || {
-                // blocking connect using the tcp client library wrapper
-                match connect_sync(&address) {
+            std::thread::spawn({
+                let progress_clone = progress.clone();
+                move || match connect_sync(&address) {
                     Ok(_stream) => {
                         let sender = progress_clone
                             .lock()
@@ -314,11 +303,6 @@ pub fn handle_enter_key(
                             .clone_sender();
                         sender
                             .send(crate::state::state::ConnectionState::Connected)
-                            .ok();
-                        ui_tx
-                            .send(crate::events::ui_update::UIUpdate::SwitchScreen(
-                                ScreenState::TcpLogs,
-                            ))
                             .ok();
                     }
                     Err(e) => {
@@ -333,11 +317,6 @@ pub fn handle_enter_key(
                                 e
                             )))
                             .ok();
-                        ui_tx
-                            .send(crate::events::ui_update::UIUpdate::SwitchScreen(
-                                ScreenState::TcpLogs,
-                            ))
-                            .ok();
                     }
                 }
             });
@@ -345,6 +324,7 @@ pub fn handle_enter_key(
         return;
     }
 
+    // Otherwise handle normal input (i.e. the API scenario)
     match input_box.submit_message() {
         Ok(api) => {
             if let Err(e) = crate::core_mod::core::create_config(&api) {

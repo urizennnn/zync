@@ -12,7 +12,7 @@ use ratatui::{
 
 #[derive(Debug)]
 pub struct ConnectionProgress {
-    state: ConnectionState,
+    pub state: ConnectionState,
     event: SyncEvent<ConnectionState>,
 }
 
@@ -25,7 +25,7 @@ impl Default for ConnectionProgress {
 impl ConnectionProgress {
     pub fn new() -> Self {
         Self {
-            state: ConnectionState::Connecting,
+            state: ConnectionState::NoConnection,
             event: SyncEvent::new(),
         }
     }
@@ -69,6 +69,7 @@ impl ConnectionProgress {
                 ("Connection established!", Style::default().fg(Color::Green))
             }
             ConnectionState::Failed(err) => (err, Style::default().fg(Color::Red)),
+            _ => ("", Style::default().fg(Color::White)),
         };
 
         let paragraph = Paragraph::new(message).style(style);

@@ -11,6 +11,7 @@ use crate::screens::{
 };
 use crate::state::state::ScreenState;
 use crossterm::event::{Event, KeyCode};
+use ratatui::prelude::Stylize;
 use ratatui::{
     layout::Rect,
     text::Line,
@@ -47,7 +48,7 @@ impl Home {
         error: Arc<Mutex<ErrorWidget>>,
         host: Arc<Mutex<HostTypePopup>>,
         debug_screen: Arc<Mutex<DebugScreen>>,
-        progress: Arc<Mutex<crate::screens::connection_progress::ConnectionProgress>>, // std::sync::Mutex now
+        progress: Arc<Mutex<crate::screens::connection_progress::ConnectionProgress>>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Event::Key(key) = event {
             match key.code {
@@ -145,6 +146,7 @@ impl Home {
         let debug_screen = Arc::new(Mutex::new(DebugScreen::new()));
 
         while self.running {
+            // Poll for UIUpdate messages
             while let Ok(update) = self.ui_update_rx.try_recv() {
                 match update {
                     UIUpdate::ShowPopup(msg) => {
@@ -156,6 +158,7 @@ impl Home {
                     }
                 }
             }
+
             match crate::core_mod::core::check_config() {
                 Ok(_) => {
                     let state_snapshot = Arc::new(crate::state::state::StateSnapshot {
@@ -166,6 +169,7 @@ impl Home {
                         host: host.clone(),
                         progress: progress.clone(),
                         debug_screen: debug_screen.clone(),
+                        stream: None,
                     });
                     crate::state::manager::manage_state(self, state_snapshot, term.clone())?;
                 }
@@ -190,6 +194,8 @@ impl Home {
                     })?;
                 }
             }
+
+            // Poll for new key events
             if let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) {
                 self.handle_event(
                     event,
@@ -217,9 +223,6 @@ impl Home {
     pub fn draw_commands(area: Rect, _buf: &mut ratatui::buffer::Buffer) {
         let _ = area;
     }
-
-    // Stub for "render", real logic is in the `.draw(...)` usage above
-    pub fn render(&self, _area: Rect, _buf: &mut ratatui::buffer::Buffer) {}
 }
 
 impl Default for Home {
@@ -262,6 +265,7 @@ impl Widget for &Home {
                 Constraint::Length(1),
             ])
             .split(area);
+
         let border = Home::create_border("Welcome", self.show_popup);
         border.render(layout[0], buf);
 

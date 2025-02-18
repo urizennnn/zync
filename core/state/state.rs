@@ -5,11 +5,10 @@ use crate::{
         host_type::HostTypePopup, popup::InputBox, protocol_popup::ConnectionPopup,
     },
 };
-use std::sync::{Arc, Mutex}; // <-- Use std::sync::Mutex instead of tokio::sync::Mutex
+use std::sync::{Arc, Mutex};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
 pub enum ScreenState {
-    TcpLogs,
     Home,
     Popup,
     Transfer,
@@ -23,6 +22,7 @@ pub enum ScreenState {
 }
 #[derive(Clone, Debug)]
 pub enum ConnectionState {
+    NoConnection,
     Connecting,
     Connected,
     Failed(String),
@@ -34,6 +34,7 @@ pub struct StateSnapshot {
     pub connection: Arc<Mutex<ConnectionPopup>>,
     pub input_box: Arc<Mutex<InputBox>>,
     pub host: Arc<Mutex<HostTypePopup>>,
-    pub progress: Arc<Mutex<ConnectionProgress>>, // changed from tokio::sync::Mutex
+    pub progress: Arc<Mutex<ConnectionProgress>>,
     pub debug_screen: Arc<Mutex<DebugScreen>>,
+    pub stream: Option<Arc<Mutex<tokio::net::TcpStream>>>,
 }
