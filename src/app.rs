@@ -39,17 +39,27 @@ pub fn init_app() -> Result<(), Box<dyn Error>> {
 
     let (event_tx, event_rx) = std::sync::mpsc::channel();
 
-    std::thread::spawn(move || loop {
-        if event::poll(Duration::from_millis(100)).unwrap() {
-            if let Ok(ev) = event::read() {
-                if event_tx.send(ev).is_err() {
-                    break;
+    let event_thread = std::thread::spawn({
+        let event_tx_clone = event_tx.clone();
+        move || loop {
+            if event::poll(Duration::from_millis(100)).unwrap() {
+                match event::read() {
+                    Ok(ev) => {
+                        if event_tx_clone.send(ev).is_err() {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
                 }
             }
         }
     });
 
     let app_result = Home::default().run(backend.clone(), event_rx);
+
+    drop(event_tx);
+
+    let _ = event_thread.join();
 
     if let Err(err) = backend.lock().unwrap().show_cursor() {
         let error_message = format!("App panicked out: {:?}", err);

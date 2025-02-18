@@ -186,7 +186,6 @@ pub fn handle_enter_key(
                     return;
                 }
                 {
-                    // notify we are "Connecting"
                     let sender = progress.lock().unwrap().get_event_sender().clone_sender();
                     sender
                         .send(crate::state::state::ConnectionState::Connecting)
