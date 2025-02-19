@@ -1,4 +1,5 @@
-use crate::core_mod::widgets::{SelectedItem, TableWidget};
+use crate::core_mod::widgets::TableWidget;
+use crate::internal::open_file;
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
 use crate::screens::host_type::{HostType, HostTypePopup};
@@ -36,7 +37,8 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
         home.current_screen = ScreenState::Sessions;
     } else if home.current_screen == ScreenState::TcpServer {
         home.current_screen = ScreenState::Sessions;
-    } else if home.current_screen == ScreenState::Transfer {
+    }
+    if home.current_screen == ScreenState::Transfer {
         home.current_screen = ScreenState::Sessions;
     } else {
         home.running = false;
@@ -361,5 +363,10 @@ pub fn handle_down_arrow(table: &mut TableWidget) {
 pub fn handle_backspace_key(input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.delete_char();
+    }
+}
+pub fn handle_o_key(home: &mut Home) {
+    if home.current_screen == ScreenState::Sessions {
+        open_file::open_explorer_and_file_select();
     }
 }

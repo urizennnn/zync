@@ -3,7 +3,7 @@ use super::host_type::HostTypePopup;
 use crate::core_mod::widgets::TableWidget;
 use crate::events::input::{
     handle_backspace_key, handle_char_key, handle_d_key, handle_enter_key, handle_esc_key,
-    handle_help_key, handle_left_key, handle_n_key, handle_q_key, handle_right_key,
+    handle_help_key, handle_left_key, handle_n_key, handle_o_key, handle_q_key, handle_right_key,
 };
 use crate::events::ui_update::UIUpdate;
 use crate::screens::{
@@ -11,7 +11,6 @@ use crate::screens::{
 };
 use crate::state::state::ScreenState;
 use crossterm::event::{Event, KeyCode};
-use ratatui::prelude::Stylize;
 use ratatui::{
     layout::Rect,
     text::Line,
@@ -73,6 +72,9 @@ impl Home {
                 KeyCode::Esc => {
                     let mut input_box = input_box.lock().unwrap();
                     handle_esc_key(self, &mut input_box);
+                }
+                KeyCode::Char('o') => {
+                    handle_o_key(self);
                 }
                 KeyCode::Right => {
                     let mut input_box = input_box.lock().unwrap();

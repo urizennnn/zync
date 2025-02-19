@@ -21,3 +21,6 @@ pub mod state;
 
 #[path = "../screens/mod.rs"]
 pub mod screens;
+
+#[path = "../lib/internal/mod.rs"]
+pub mod internal;
