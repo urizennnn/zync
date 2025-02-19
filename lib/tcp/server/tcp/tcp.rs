@@ -12,6 +12,16 @@ use tokio::net::{TcpListener, TcpStream};
 pub struct TCP;
 
 impl TCP {
+    pub fn accept_connection_sync(
+        addr: &str,
+    ) -> Result<(TcpStream, std::net::SocketAddr), Box<dyn Error>> {
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(async {
+            let listener = TcpListener::bind(addr).await?;
+            let (socket, addr) = listener.accept().await?;
+            Ok((socket, addr))
+        })
+    }
     pub async fn run(addr: &str) -> Result<(), Box<dyn Error>> {
         let listener = TcpListener::bind(addr).await?;
         info!("Server listening on {}", addr);

@@ -66,3 +66,5 @@ futures = "0.3.31"
 ## workspace
 tcp_server = { path = "./lib/tcp/server/" }
 tcp_client = { path = "./lib/tcp/client/" }
+ctrlc = "3.4.5"
+rfd = "0.15.2"

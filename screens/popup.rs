@@ -13,7 +13,7 @@ use super::home::Home;
 
 pub static mut FLAG: bool = false;
 
-#[derive(Default, Setters)]
+#[derive(Setters)]
 pub struct ApiPopup {
     pub title: String,
     pub message: String,
@@ -22,6 +22,7 @@ pub struct ApiPopup {
 }
 
 impl ApiPopup {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             error: false,
@@ -33,11 +34,17 @@ impl ApiPopup {
 
     pub fn render_url(&mut self, frame: &mut Frame) {
         let spans = vec![
-        Span::raw("Copy "),
-        Span::styled("this url", Style::default().add_modifier(Modifier::BOLD)),
-        Span::raw(" and paste it in your browser of choice to acquire your API key and proceed with your file sharing session.\n"),
-        Span::styled("http://localhost:8000", Style::default().add_modifier(Modifier::BOLD)),
-    ];
+            Span::raw("Copy "),
+            Span::styled("this url", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(
+                " and paste it in your browser of choice to acquire your API key \
+                and proceed with your file sharing session.\n",
+            ),
+            Span::styled(
+                "http://localhost:8000",
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+        ];
 
         let text = Text::from(Line::from(spans));
 
@@ -198,7 +205,7 @@ impl InputBox {
         new_cursor_pos.clamp(0, self.input.chars().count())
     }
 
-    fn reset_cursor(&mut self) {
+    pub fn reset_cursor(&mut self) {
         self.character_index = 0;
     }
 
@@ -283,13 +290,8 @@ impl InputBox {
     }
 }
 
-impl Default for InputBox {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Home {
+    // We keep only a single `render_notification` here to avoid duplication
     pub fn render_notification(&mut self, frame: &mut Frame) {
         self.popup_dialog = ConfirmDialogState::default()
             .modal(true)

@@ -59,7 +59,7 @@ pub mod error_widget {
                         .border_style(Style::default().fg(ratatui::style::Color::Blue))
                         .border_type(ratatui::widgets::BorderType::Rounded),
                 )
-                .wrap(ratatui::widgets::Wrap { trim: { true } })
+                .wrap(ratatui::widgets::Wrap { trim: true })
                 .alignment(Alignment::Center);
             let area = calculate_popup_area(f.area(), 20, 10);
             f.render_widget(Clear, area);

@@ -1,17 +1,17 @@
-use crate::core_mod::widgets::Item;
+use crate::core_mod::widgets::{Item, TableWidget};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style, Stylize},
-    text::{Line, Text},
+    prelude::Stylize,
+    style::{Color, Modifier, Style},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Cell, Paragraph, Row, Table},
     Frame,
 };
 use std::sync::{Arc, Mutex};
-use unicode_width::UnicodeWidthStr;
 
-use crate::core_mod::widgets::{TableWidget, TableWidgetItemManager};
-
-use super::dashboard::Data;
+use crate::screens::connection_progress::ConnectionProgress;
+use crate::screens::dashboard::Data;
+use crate::state::state::ConnectionState;
 
 #[derive(Debug, Clone)]
 pub struct Device {
@@ -54,66 +54,6 @@ pub struct Connection {
     pub format_date: String,
 }
 
-impl TableWidgetItemManager for Device {
-    type Item = Device;
-
-    async fn add_item(&mut self, item: Self::Item, table: Arc<Mutex<TableWidget>>) {
-        // Unwrap the mutex lock to access the inner TableWidget.
-        let mut table_guard = table.lock().expect("Mutex poisoned in add_item");
-        table_guard.items.push(Item::Device(item));
-        let device_items: Vec<&Self::Item> = table_guard
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let Item::Device(device) = item {
-                    Some(device)
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        table_guard.longest_item_lens = Self::constraint_len_calculator(&device_items);
-    }
-    fn constraint_len_calculator(items: &[&Self::Item]) -> Vec<u16> {
-        let width: u16 = items
-            .iter()
-            .map(|item| {
-                item.name.width() as u16
-                    + item.last_connection.format_date.width() as u16
-                    + item.last_transfer.status.width() as u16
-            })
-            .max()
-            .unwrap_or(0);
-
-        let name_percent = items
-            .iter()
-            .map(|item| item.name.width() as u16)
-            .max()
-            .unwrap_or(0)
-            * 100
-            / width;
-
-        let date_percent = items
-            .iter()
-            .map(|item| item.last_connection.format_date.width() as u16)
-            .max()
-            .unwrap_or(0)
-            * 100
-            / width;
-
-        let status_percent = items
-            .iter()
-            .map(|item| item.last_transfer.status.width() as u16)
-            .max()
-            .unwrap_or(0)
-            * 100
-            / width;
-
-        vec![name_percent, date_percent, status_percent]
-    }
-}
-
 pub fn session_details_ui(table: &mut TableWidget) -> Paragraph<'static> {
     let item_index = table.state.selected().unwrap_or(0);
     if let Some(Item::Device(device)) = table.items.get(item_index) {
@@ -154,7 +94,7 @@ pub fn session_details_ui(table: &mut TableWidget) -> Paragraph<'static> {
         .alignment(Alignment::Center)
 }
 
-pub fn session_table_ui(table: &mut TableWidget) -> ratatui::widgets::Table<'_> {
+pub fn session_table_ui(table: &mut TableWidget) -> Table<'_> {
     let header_style = Style::default()
         .fg(table.colors.header_fg)
         .bg(table.colors.header_bg);
@@ -212,11 +152,16 @@ pub fn session_table_ui(table: &mut TableWidget) -> ratatui::widgets::Table<'_> 
     .highlight_spacing(ratatui::widgets::HighlightSpacing::Always)
 }
 
-pub fn draw_session_table_ui(f: &mut Frame, table: &mut TableWidget) {
+/// NOTE the new `progress` parameter:
+pub fn draw_session_table_ui(
+    f: &mut Frame,
+    table: &mut TableWidget,
+    progress: Arc<Mutex<ConnectionProgress>>,
+) {
     table.active = true;
     let vertical_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(&[
+        .constraints([
             Constraint::Length(1),
             Constraint::Length(2),
             Constraint::Min(0),
@@ -225,14 +170,15 @@ pub fn draw_session_table_ui(f: &mut Frame, table: &mut TableWidget) {
 
     let top_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(&[Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(vertical_chunks[1]);
 
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(&[Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(vertical_chunks[2]);
 
+    // Main border
     let main_block = Block::default()
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded);
@@ -256,23 +202,57 @@ pub fn draw_session_table_ui(f: &mut Frame, table: &mut TableWidget) {
         },
     );
 
-    let top_left_text = Paragraph::new(Line::from("Sessions").yellow())
-        .style(Style::default().fg(Color::White))
+    // “Sessions” label (top-left)
+    let top_left_text = Paragraph::new(Line::from("Sessions"))
+        .style(Style::default().fg(Color::Yellow))
         .alignment(Alignment::Center);
     f.render_widget(top_left_text, top_chunks[0]);
 
-    let top_right_text = Paragraph::new(Line::from("Details".yellow()))
-        .style(Style::default().fg(Color::White))
+    // “Details” label (top-right)
+    let top_right_text = Paragraph::new(Line::from("Details"))
+        .style(Style::default().fg(Color::Yellow))
         .alignment(Alignment::Center);
     f.render_widget(top_right_text, top_chunks[1]);
 
-    // We assume `table` is already a mutable reference to the inner TableWidget.
+    // Render your table on the left side
     let mut table_state = std::mem::take(&mut table.state);
     let stateful_table = session_table_ui(table);
     f.render_stateful_widget(stateful_table, main_chunks[0], &mut table_state);
+    table.state = table_state;
 
+    // Render your “details” box on the right side
     let details_panel = session_details_ui(table);
     f.render_widget(details_panel, main_chunks[1]);
 
-    table.state = table_state;
+    // === NEW LOGIC: “progress” usage ===
+    let connect_state = {
+        // Safely lock the `progress` to read the ConnectionState
+        let lock = progress.lock().unwrap();
+        lock.state.clone()
+    };
+
+    let (status_str, color) = match connect_state {
+        ConnectionState::Connected => ("CONNECTED", Color::Green),
+        ConnectionState::NoConnection => ("NO CONNECTION", Color::Red),
+        ConnectionState::Connecting => ("CONNECTING", Color::Yellow),
+        ConnectionState::Failed(_) => ("FAILED", Color::Red),
+    };
+
+    // Draw the status in the top-right corner
+    let corner_rect = Rect {
+        x: f.area().width.saturating_sub(18),
+        y: 0,
+        width: 18,
+        height: 1,
+    };
+
+    let status_text = Paragraph::new(Line::from(vec![
+        Span::raw("Status: "),
+        Span::styled(
+            status_str,
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
+        ),
+    ]));
+
+    f.render_widget(status_text, corner_rect);
 }

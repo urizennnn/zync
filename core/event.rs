@@ -1,38 +1,36 @@
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 #[derive(Debug)]
-pub struct AsyncEvent<T> {
+pub struct SyncEvent<T> {
     sender: Sender<T>,
     receiver: Receiver<T>,
 }
 
-pub trait NewTrait<T> {
+pub trait SyncTrait<T> {
     fn new() -> Self;
-
-    fn send(&self, data: T) -> impl std::future::Future<Output = ()> + Send;
-
-    fn recv(&mut self) -> impl std::future::Future<Output = Option<T>>;
+    fn clone_sender(&self) -> Sender<T>;
+    fn send(&self, data: T);
+    fn recv(&mut self) -> Option<T>;
 }
 
-impl<T> NewTrait<T> for AsyncEvent<T>
+impl<T> SyncTrait<T> for SyncEvent<T>
 where
     T: Send + 'static,
 {
     fn new() -> Self {
-        let (sender, receiver) = channel(32);
+        let (sender, receiver) = channel();
         Self { sender, receiver }
     }
 
-    fn send(&self, data: T) -> impl std::future::Future<Output = ()> + Send {
-        let sender = self.sender.clone();
-        async move {
-            if let Err(err) = sender.send(data).await {
-                eprintln!("Failed to send data: {}", err);
-            }
-        }
+    fn send(&self, data: T) {
+        let _ = self.sender.send(data);
     }
 
-    fn recv(&mut self) -> impl std::future::Future<Output = Option<T>> {
-        self.receiver.recv()
+    fn recv(&mut self) -> Option<T> {
+        self.receiver.recv().ok()
+    }
+
+    fn clone_sender(&self) -> Sender<T> {
+        self.sender.clone()
     }
 }
