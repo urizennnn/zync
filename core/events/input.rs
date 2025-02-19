@@ -1,15 +1,16 @@
 use crate::core_mod::widgets::TableWidget;
-use crate::internal::open_file;
+use crate::internal::session_store; // NEW: for updating session files and records
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
 use crate::screens::host_type::{HostType, HostTypePopup};
 use crate::screens::popup::{InputBox, InputMode, FLAG};
 use crate::screens::protocol_popup::{ConnectionPopup, ConnectionType};
-use crate::state::state::ScreenState;
+use crate::state::state::{ConnectionState, ScreenState};
 use std::sync::Arc;
 
 // Removed references to "TcpLogs"
 use tcp_client::app::connect_sync;
+use tcp_client::utils::get_ip::get_local_ip;
 use tcp_server::tcp::tcp::TCP;
 
 pub fn handle_help_key(
@@ -37,8 +38,7 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
         home.current_screen = ScreenState::Sessions;
     } else if home.current_screen == ScreenState::TcpServer {
         home.current_screen = ScreenState::Sessions;
-    }
-    if home.current_screen == ScreenState::Transfer {
+    } else if home.current_screen == ScreenState::Transfer {
         home.current_screen = ScreenState::Sessions;
     } else {
         home.running = false;
@@ -145,6 +145,7 @@ pub fn handle_left_key(
     }
 }
 
+/// Updated handle_enter_key with session update logic for TCP server and client.
 pub fn handle_enter_key(
     home: &mut Home,
     input_box: &mut InputBox,
@@ -228,27 +229,71 @@ pub fn handle_enter_key(
                     return;
                 }
                 {
-                    // Directly update the progress state to Connecting
+                    // Update progress state directly to Connecting
                     let mut prog = progress.lock().unwrap();
-                    prog.state = crate::state::state::ConnectionState::Connecting;
+                    prog.state = ConnectionState::Connecting;
                 }
+                // Spawn a thread to accept connection and update progress and session store
                 std::thread::spawn({
                     let progress_clone = progress.clone();
                     move || match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port)) {
                         Ok((_socket, _addr)) => {
                             let mut prog = progress_clone.lock().unwrap();
-                            prog.state = crate::state::state::ConnectionState::Connected;
+                            prog.state = ConnectionState::Connected;
+                            // After connection is accepted, update the session file.
+                            let hostname = whoami::username();
+                            let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+                            let now = chrono::Utc::now().to_rfc3339();
+                            let new_record = session_store::SessionRecord {
+                                name: hostname.clone(),
+                                ip: ip.clone(),
+                                last_transfer: "N/A".to_string(),
+                                last_connection: now.clone(),
+                            };
+                            session_store::update_session_record(new_record);
                         }
                         Err(e) => {
                             let mut prog = progress_clone.lock().unwrap();
-                            prog.state = crate::state::state::ConnectionState::Failed(format!(
-                                "Error opening port: {}",
-                                e
-                            ));
+                            prog.state =
+                                ConnectionState::Failed(format!("Error opening port: {}", e));
                         }
                     }
                 });
-
+                // In the main thread, update the in-memory session table.
+                let hostname = whoami::username();
+                let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+                let now = chrono::Utc::now().to_rfc3339();
+                let new_device = crate::screens::session::Device {
+                    name: hostname.clone(),
+                    ip: ip.clone(),
+                    last_transfer: crate::screens::session::Transfer {
+                        status: "N/A".to_string(),
+                        size: "N/A".to_string(),
+                        name: "N/A".to_string(),
+                    },
+                    last_connection: crate::screens::session::Connection {
+                        total: now.clone(),
+                        format_date: now.clone(),
+                    },
+                    files: None,
+                };
+                let mut found = false;
+                for item in table.items.iter_mut() {
+                    if let crate::core_mod::widgets::Item::Device(ref mut d) = item {
+                        if d.name == hostname {
+                            d.ip = ip.clone();
+                            d.last_connection.total = now.clone();
+                            d.last_connection.format_date = now.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if !found {
+                    table
+                        .items
+                        .push(crate::core_mod::widgets::Item::Device(new_device));
+                }
                 input_box.input.clear();
                 input_box.reset_cursor();
                 unsafe {
@@ -276,24 +321,67 @@ pub fn handle_enter_key(
             };
             {
                 let mut prog = progress.lock().unwrap();
-                prog.state = crate::state::state::ConnectionState::Connecting;
+                prog.state = ConnectionState::Connecting;
             }
             std::thread::spawn({
                 let progress_clone = progress.clone();
                 move || match connect_sync(&address) {
                     Ok(_stream) => {
                         let mut prog = progress_clone.lock().unwrap();
-                        prog.state = crate::state::state::ConnectionState::Connected;
+                        prog.state = ConnectionState::Connected;
+                        // Update session record on success.
+                        let hostname = whoami::username();
+                        let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+                        let now = chrono::Utc::now().to_rfc3339();
+                        let new_record = session_store::SessionRecord {
+                            name: hostname.clone(),
+                            ip: ip.clone(),
+                            last_transfer: "N/A".to_string(),
+                            last_connection: now.clone(),
+                        };
+                        session_store::update_session_record(new_record);
                     }
                     Err(e) => {
                         let mut prog = progress_clone.lock().unwrap();
-                        prog.state = crate::state::state::ConnectionState::Failed(format!(
-                            "Error connecting: {}",
-                            e
-                        ));
+                        prog.state = ConnectionState::Failed(format!("Error connecting: {}", e));
                     }
                 }
             });
+            // Update in-memory session table as before.
+            let hostname = whoami::username();
+            let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+            let now = chrono::Utc::now().to_rfc3339();
+            let new_device = crate::screens::session::Device {
+                name: hostname.clone(),
+                ip: ip.clone(),
+                last_transfer: crate::screens::session::Transfer {
+                    status: "N/A".to_string(),
+                    size: "N/A".to_string(),
+                    name: "N/A".to_string(),
+                },
+                last_connection: crate::screens::session::Connection {
+                    total: now.clone(),
+                    format_date: now.clone(),
+                },
+                files: None,
+            };
+            let mut found = false;
+            for item in table.items.iter_mut() {
+                if let crate::core_mod::widgets::Item::Device(ref mut d) = item {
+                    if d.name == hostname {
+                        d.ip = ip.clone();
+                        d.last_connection.total = now.clone();
+                        d.last_connection.format_date = now.clone();
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if !found {
+                table
+                    .items
+                    .push(crate::core_mod::widgets::Item::Device(new_device));
+            }
         }
         return;
     }
@@ -365,8 +453,9 @@ pub fn handle_backspace_key(input_box: &mut InputBox) {
         input_box.delete_char();
     }
 }
+
 pub fn handle_o_key(home: &mut Home) {
     if home.current_screen == ScreenState::Sessions {
-        open_file::open_explorer_and_file_select();
+        crate::internal::open_file::open_explorer_and_file_select();
     }
 }

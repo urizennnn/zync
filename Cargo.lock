@@ -4541,6 +4541,7 @@ name = "zync"
 version = "0.0.1-alpha"
 dependencies = [
  "better-panic",
+ "chrono",
  "color-eyre",
  "crossterm",
  "ctrlc",
