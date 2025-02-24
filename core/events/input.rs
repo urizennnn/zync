@@ -13,6 +13,51 @@ use tcp_client::app::connect_sync;
 use tcp_client::utils::get_ip::get_local_ip;
 use tcp_server::tcp::tcp::TCP;
 
+/// Toggles the help display of the table widget if the API popup is not active, and processes the provided character input.
+///
+/// This function checks the `home` state and, if no API popup is shown, toggles the `help` flag within the table widget.
+/// It then forwards the supplied character key to update the input box via `handle_char_key`.
+///
+/// # Examples
+///
+/// ```rust
+/// // Dummy structures for demonstration purposes.
+/// struct Home {
+///     show_api_popup: bool,
+/// }
+///
+/// struct TableWidget {
+///     help: bool,
+/// }
+///
+/// struct InputBox;
+///
+/// // Dummy implementation of handle_char_key for the example.
+/// fn handle_char_key(_key: char, _input_box: &mut InputBox) {}
+///
+/// // The implementation of handle_help_key as defined in the module.
+/// fn handle_help_key(home: &mut Home, table: &mut TableWidget, key: char, input_box: &mut InputBox) {
+///     if !home.show_api_popup {
+///         table.help = !table.help;
+///     }
+///     handle_char_key(key, input_box);
+/// }
+///
+/// fn main() {
+///     let mut home = Home { show_api_popup: false };
+///     let mut table = TableWidget { help: false };
+///     let mut input_box = InputBox;
+///
+///     // Toggling help when the API popup is inactive.
+///     handle_help_key(&mut home, &mut table, 'h', &mut input_box);
+///     assert!(table.help);
+///
+///     // With the API popup active, the help state should remain unchanged.
+///     home.show_api_popup = true;
+///     handle_help_key(&mut home, &mut table, 'h', &mut input_box);
+///     assert!(table.help);
+/// }
+/// ```
 pub fn handle_help_key(
     home: &mut Home,
     table: &mut TableWidget,
@@ -25,6 +70,36 @@ pub fn handle_help_key(
     handle_char_key(key, input_box);
 }
 
+/// Handles the 'q' key press to update the application's state.
+///
+/// Depending on the current UI state:
+/// - If an API popup is active, delegates the 'q' character to the input box handler.
+/// - If a generic popup is visible, sends a cancellation signal and dismisses the popup.
+/// - If a connection input popup is active, closes it and switches the screen to Sessions.
+/// - If the current screen is TcpServer or Transfer, changes the screen to Sessions.
+/// - Otherwise, signals the application to terminate by setting `running` to false.
+///
+/// # Examples
+///
+/// ```rust
+/// // Assume Home, InputBox, and ConnectionPopup implement Default and that ScreenState::Other
+/// // represents a state other than TcpServer or Transfer.
+/// let mut home = Home::default();
+/// let mut input_box = InputBox::default();
+/// let mut connection = ConnectionPopup::default();
+///
+/// // Configure state with no active popups and a non-special screen.
+/// home.show_api_popup = false;
+/// home.show_popup = false;
+/// connection.input_popup = false;
+/// home.current_screen = ScreenState::Other;
+/// home.running = true;
+///
+/// handle_q_key(&mut home, &mut input_box, &mut connection);
+///
+/// // With the above state, pressing 'q' should signal the application to terminate.
+/// assert!(!home.running);
+/// ```
 pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut ConnectionPopup) {
     if home.show_api_popup {
         handle_char_key('q', input_box);
@@ -127,6 +202,110 @@ pub fn handle_right_key(
     }
 }
 
+/// Processes the left arrow key input across various UI elements.
+///
+/// Depending on the current state, this function will:
+/// - Cycle through buttons in an active popup by updating the selected button in `home` and sending an update via its channel.
+/// - Move the cursor left if the input box is in editing mode.
+/// - Navigate to the previous option in the connection or host type popups when visible.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::sync::mpsc;
+///
+/// // Dummy implementations for demonstration purposes.
+/// struct Home {
+///     show_popup: bool,
+///     selected_button: usize,
+///     popup_tx: mpsc::Sender<(u16, Option<()>)>,
+/// }
+///
+/// impl Home {
+///     fn new(show_popup: bool, selected_button: usize, popup_tx: mpsc::Sender<(u16, Option<()>)>) -> Self {
+///         Self { show_popup, selected_button, popup_tx }
+///     }
+/// }
+///
+/// #[derive(PartialEq)]
+/// enum InputMode {
+///     Normal,
+///     Editing,
+/// }
+///
+/// struct InputBox {
+///     input_mode: InputMode,
+/// }
+///
+/// impl InputBox {
+///     fn new(input_mode: InputMode) -> Self {
+///         Self { input_mode }
+///     }
+///
+///     fn move_cursor_left(&mut self) {
+///         // Simulate moving the cursor left.
+///     }
+/// }
+///
+/// struct ConnectionPopup {
+///     visible: bool,
+/// }
+///
+/// impl ConnectionPopup {
+///     fn new(visible: bool) -> Self {
+///         Self { visible }
+///     }
+///
+///     fn previous(&mut self) {
+///         // Simulate navigating to the previous connection option.
+///     }
+/// }
+///
+/// struct HostTypePopup {
+///     visible: bool,
+/// }
+///
+/// impl HostTypePopup {
+///     fn new(visible: bool) -> Self {
+///         Self { visible }
+///     }
+///
+///     fn previous(&mut self) {
+///         // Simulate navigating to the previous host option.
+///     }
+/// }
+///
+/// // Assume `handle_left_key` is defined in the same scope.
+/// fn handle_left_key(
+///     home: &mut Home,
+///     input_box: &mut InputBox,
+///     connection: &mut ConnectionPopup,
+///     host: &mut HostTypePopup,
+/// ) {
+///     if home.show_popup {
+///         home.selected_button = (home.selected_button + 1) % 2;
+///         home.popup_tx.send((home.selected_button as u16, None)).ok();
+///     } else if input_box.input_mode == InputMode::Editing {
+///         input_box.move_cursor_left();
+///     } else if connection.visible {
+///         connection.previous();
+///     } else if host.visible {
+///         host.previous();
+///     }
+/// }
+///
+/// fn main() {
+///     let (tx, _rx) = mpsc::channel();
+///     let mut home = Home::new(true, 0, tx);
+///     let mut input_box = InputBox::new(InputMode::Normal);
+///     let mut connection = ConnectionPopup::new(false);
+///     let mut host = HostTypePopup::new(false);
+///
+///     // With a popup visible, the left arrow key cycles the button selection.
+///     handle_left_key(&mut home, &mut input_box, &mut connection, &mut host);
+///     assert_eq!(home.selected_button, 1);
+/// }
+/// ```
 pub fn handle_left_key(
     home: &mut Home,
     input_box: &mut InputBox,
@@ -145,8 +324,49 @@ pub fn handle_left_key(
     }
 }
 
-/// Updated handle_enter_key with session update logic for TCP server and client.
-pub fn handle_enter_key(
+/// Handles the Enter key press by dispatching actions based on the current UI state and input context.
+///
+/// This function processes the Enter key event by routing the action to one of several code paths:
+/// - If a popup is active, it confirms the popup selection.
+/// - If a device is selected in the table widget, it updates the table with file details and transitions to the transfer screen.
+/// - If the connection or host type popups are visible, it adjusts the UI to begin a TCP connection in server or client mode.
+/// - In TCP server mode, it validates the user-entered port, updates connection progress, spawns a thread to accept incoming connections,
+///   and updates the session record and in-memory session table.
+/// - In TCP client mode, it formats the user-provided address, initiates a connection in a spawned thread, and updates session records similarly.
+/// - Otherwise, it handles API configuration input, updating the configuration and UI accordingly.
+///
+/// Note that this function spawns threads for blocking network operations and session updates, and it modifies several shared UI components.
+///
+/// # Examples
+///
+/// ```
+/// use std::sync::{Arc, Mutex};
+/// // Assuming default implementations for testing purposes.
+/// let mut home = Home::default();
+/// let mut input_box = InputBox::default();
+/// let mut error = crate::screens::error::error_widget::ErrorWidget::default();
+/// let mut table = TableWidget::default();
+/// let connection_popup = Arc::new(Mutex::new(ConnectionPopup::default()));
+/// let mut host = HostTypePopup::default();
+/// let progress = Arc::new(Mutex::new(crate::screens::connection_progress::ConnectionProgress::default()));
+///
+/// // Example: Simulate API configuration input branch.
+/// home.current_screen = ScreenState::Sessions;
+/// input_box.input = "api_command".to_string();
+///
+/// handle_enter_key(
+///     &mut home,
+///     &mut input_box,
+///     &mut error,
+///     &mut table,
+///     connection_popup.clone(),
+///     &mut host,
+///     progress.clone(),
+/// );
+///
+/// // Verify that the screen transitioned back to Sessions.
+/// assert_eq!(home.current_screen, ScreenState::Sessions);
+/// ```pub fn handle_enter_key(
     home: &mut Home,
     input_box: &mut InputBox,
     error: &mut crate::screens::error::error_widget::ErrorWidget,
@@ -448,12 +668,47 @@ pub fn handle_down_arrow(table: &mut TableWidget) {
     }
 }
 
+/// Removes the last character from the input box if it is in editing mode.
+///
+/// This function checks whether the input box is currently set to the `Editing` mode.
+/// If so, it invokes the deletion of the last character. No action is performed if the
+/// input box is not in editing mode.
+///
+/// # Examples
+///
+/// ```
+/// // Assume `InputBox` and `InputMode` are defined and available.
+///
+/// // Create an input box instance and set it to editing mode.
+/// let mut input_box = InputBox::new();
+/// input_box.set_mode(InputMode::Editing);
+/// input_box.set_text("Hello");
+///
+/// // Process a backspace key press, removing the last character.
+/// handle_backspace_key(&mut input_box);
+/// assert_eq!(input_box.get_text(), "Hell");
+/// ```
 pub fn handle_backspace_key(input_box: &mut InputBox) {
     if input_box.input_mode == InputMode::Editing {
         input_box.delete_char();
     }
 }
 
+/// Opens a file explorer for file selection when the current screen is set to Sessions.
+///
+/// This function checks if the application's active screen is Sessions and, if so,
+/// launches the file explorer prompt for selecting a file.
+///
+/// # Examples
+///
+/// ```
+/// // Assume Home and ScreenState are properly defined and initialized.
+/// let mut home = Home::default();
+/// home.current_screen = ScreenState::Sessions;
+///
+/// // This call will trigger the file explorer prompt.
+/// handle_o_key(&mut home);
+/// ```
 pub fn handle_o_key(home: &mut Home) {
     if home.current_screen == ScreenState::Sessions {
         crate::internal::open_file::open_explorer_and_file_select();
