@@ -17,16 +17,20 @@ pub struct SessionRecord {
 /// Returns the file path for today's session record.
 /// On Unix, this will typically be ~/.local/share/zync/sessions/session_YYYY-MM-DD.json;
 /// on Windows, it will be in the corresponding local app data directory.
-fn get_session_file_path() -> PathBuf {
+fn get_session_file_path() -> Result<PathBuf, std::io::Error> {
     // Use the local data directory (Unix: ~/.local/share, Windows: %LOCALAPPDATA%)
-    let mut dir = dirs::data_local_dir().unwrap_or_else(|| std::env::current_dir().unwrap());
+    let mut dir = dirs::data_local_dir()
+        .or_else(|| std::env::current_dir().ok())
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Could not determine data directory"))?;
+    
     // Create a subdirectory for your application
     dir.push("zync");
     // And a folder for session records
     dir.push("sessions");
     let date = Utc::now().format("%Y-%m-%d").to_string();
     dir.push(format!("session_{}.json", date));
-    dir
+    Ok(dir)
+}
 }
 
 pub fn load_sessions() -> Vec<SessionRecord> {
