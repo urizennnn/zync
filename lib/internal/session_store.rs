@@ -2,7 +2,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, create_dir_all},
-    io::{Read, Write},
+    io::Read,
     path::PathBuf,
 };
 
@@ -14,15 +14,9 @@ pub struct SessionRecord {
     pub last_connection: String,
 }
 
-/// Returns the file path for today's session record.
-/// On Unix, this will typically be ~/.local/share/zync/sessions/session_YYYY-MM-DD.json;
-/// on Windows, it will be in the corresponding local app data directory.
 fn get_session_file_path() -> PathBuf {
-    // Use the local data directory (Unix: ~/.local/share, Windows: %LOCALAPPDATA%)
     let mut dir = dirs::data_local_dir().unwrap_or_else(|| std::env::current_dir().unwrap());
-    // Create a subdirectory for your application
     dir.push("zync");
-    // And a folder for session records
     dir.push("sessions");
     let date = Utc::now().format("%Y-%m-%d").to_string();
     dir.push(format!("session_{}.json", date));

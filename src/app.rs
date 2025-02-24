@@ -11,10 +11,15 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use log;
+use once_cell::sync::Lazy;
 use ratatui::{backend::CrosstermBackend, Terminal};
+use tokio::runtime::Runtime;
 use tui_logger;
 
 use crate::screens::home::Home;
+
+pub static GLOBAL_RUNTIME: Lazy<Runtime> =
+    Lazy::new(|| Runtime::new().expect("Failed to create tokio runtime"));
 
 pub fn init_app() -> Result<(), Box<dyn Error>> {
     tui_logger::init_logger(log::LevelFilter::Trace)?;
@@ -38,7 +43,6 @@ pub fn init_app() -> Result<(), Box<dyn Error>> {
     let backend = Arc::new(Mutex::new(terminal));
 
     let (event_tx, event_rx) = std::sync::mpsc::channel();
-
     let event_thread = std::thread::spawn({
         let event_tx_clone = event_tx.clone();
         move || loop {
@@ -56,15 +60,13 @@ pub fn init_app() -> Result<(), Box<dyn Error>> {
     });
 
     let app_result = Home::default().run(backend.clone(), event_rx);
-
     drop(event_tx);
-
     let _ = event_thread.join();
 
     if let Err(err) = backend.lock().unwrap().show_cursor() {
-        let error_message = format!("App panicked out: {:?}", err);
+        let msg = format!("App panicked out: {:?}", err);
         restore_tui()?;
-        panic!("{error_message}");
+        panic!("{msg}");
     }
 
     restore_tui()?;

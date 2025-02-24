@@ -1,14 +1,13 @@
 use crate::core_mod::widgets::TableWidget;
-use crate::internal::session_store; // NEW: for updating session files and records
+use crate::internal::session_store;
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
 use crate::screens::host_type::{HostType, HostTypePopup};
 use crate::screens::popup::{InputBox, InputMode, FLAG};
 use crate::screens::protocol_popup::{ConnectionPopup, ConnectionType};
 use crate::state::state::{ConnectionState, ScreenState};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-// Removed references to "TcpLogs"
 use tcp_client::app::connect_sync;
 use tcp_client::utils::get_ip::get_local_ip;
 use tcp_server::tcp::tcp::TCP;
@@ -38,7 +37,8 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
         home.current_screen = ScreenState::Sessions;
     } else if home.current_screen == ScreenState::TcpServer {
         home.current_screen = ScreenState::Sessions;
-    } else if home.current_screen == ScreenState::Transfer {
+    }
+    if home.current_screen == ScreenState::Transfer {
         home.current_screen = ScreenState::Sessions;
     } else {
         home.running = false;
@@ -145,7 +145,6 @@ pub fn handle_left_key(
     }
 }
 
-/// Updated handle_enter_key with session update logic for TCP server and client.
 pub fn handle_enter_key(
     home: &mut Home,
     input_box: &mut InputBox,
@@ -186,7 +185,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // If the main popup is open
     if connection.visible {
         let selected = connection.return_selected();
         if selected == Some(ConnectionType::TCP) {
@@ -198,7 +196,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // If the HostType popup is open
     if host.visible {
         let selected = host.return_selected();
         if selected == HostType::SENDER {
@@ -215,7 +212,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // --- Server port logic ---
     if home.current_screen == ScreenState::TcpServer {
         if let Ok(user_input) = input_box.submit_message() {
             if let Ok(port) = user_input.parse::<u16>() {
@@ -229,37 +225,31 @@ pub fn handle_enter_key(
                     return;
                 }
                 {
-                    // Update progress state directly to Connecting
                     let mut prog = progress.lock().unwrap();
                     prog.state = ConnectionState::Connecting;
                 }
-                // Spawn a thread to accept connection and update progress and session store
-                std::thread::spawn({
-                    let progress_clone = progress.clone();
-                    move || match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port)) {
-                        Ok((_socket, _addr)) => {
-                            let mut prog = progress_clone.lock().unwrap();
-                            prog.state = ConnectionState::Connected;
-                            // After connection is accepted, update the session file.
-                            let hostname = whoami::username();
-                            let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
-                            let now = chrono::Utc::now().to_rfc3339();
-                            let new_record = session_store::SessionRecord {
-                                name: hostname.clone(),
-                                ip: ip.clone(),
-                                last_transfer: "N/A".to_string(),
-                                last_connection: now.clone(),
-                            };
-                            session_store::update_session_record(new_record);
-                        }
-                        Err(e) => {
-                            let mut prog = progress_clone.lock().unwrap();
-                            prog.state =
-                                ConnectionState::Failed(format!("Error opening port: {}", e));
-                        }
+                let progress_clone = progress.clone();
+                match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port)) {
+                    Ok((socket, _addr)) => {
+                        let mut prog = progress_clone.lock().unwrap();
+                        prog.state = ConnectionState::Connected;
+                        let hostname = whoami::username();
+                        let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+                        let now = chrono::Utc::now().to_rfc3339();
+                        let new_record = session_store::SessionRecord {
+                            name: hostname.clone(),
+                            ip: ip.clone(),
+                            last_transfer: "N/A".to_string(),
+                            last_connection: now.clone(),
+                        };
+                        session_store::update_session_record(new_record);
+                        home.tcp_stream = Some(Arc::new(Mutex::new(socket)));
                     }
-                });
-                // In the main thread, update the in-memory session table.
+                    Err(e) => {
+                        let mut prog = progress_clone.lock().unwrap();
+                        prog.state = ConnectionState::Failed(format!("Error opening port: {}", e));
+                    }
+                };
                 let hostname = whoami::username();
                 let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
                 let now = chrono::Utc::now().to_rfc3339();
@@ -294,6 +284,7 @@ pub fn handle_enter_key(
                         .items
                         .push(crate::core_mod::widgets::Item::Device(new_device));
                 }
+
                 input_box.input.clear();
                 input_box.reset_cursor();
                 unsafe {
@@ -311,7 +302,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // --- Client address logic ---
     if home.current_screen == ScreenState::TcpClient {
         if let Ok(user_input) = input_box.submit_message() {
             let address = if user_input.contains(':') {
@@ -323,31 +313,28 @@ pub fn handle_enter_key(
                 let mut prog = progress.lock().unwrap();
                 prog.state = ConnectionState::Connecting;
             }
-            std::thread::spawn({
-                let progress_clone = progress.clone();
-                move || match connect_sync(&address) {
-                    Ok(_stream) => {
-                        let mut prog = progress_clone.lock().unwrap();
-                        prog.state = ConnectionState::Connected;
-                        // Update session record on success.
-                        let hostname = whoami::username();
-                        let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
-                        let now = chrono::Utc::now().to_rfc3339();
-                        let new_record = session_store::SessionRecord {
-                            name: hostname.clone(),
-                            ip: ip.clone(),
-                            last_transfer: "N/A".to_string(),
-                            last_connection: now.clone(),
-                        };
-                        session_store::update_session_record(new_record);
-                    }
-                    Err(e) => {
-                        let mut prog = progress_clone.lock().unwrap();
-                        prog.state = ConnectionState::Failed(format!("Error connecting: {}", e));
-                    }
+            let progress_clone = progress.clone();
+            match connect_sync(&address) {
+                Ok(stream) => {
+                    let mut prog = progress_clone.lock().unwrap();
+                    prog.state = ConnectionState::Connected;
+                    let hostname = whoami::username();
+                    let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+                    let now = chrono::Utc::now().to_rfc3339();
+                    let new_record = session_store::SessionRecord {
+                        name: hostname.clone(),
+                        ip: ip.clone(),
+                        last_transfer: "N/A".to_string(),
+                        last_connection: now.clone(),
+                    };
+                    session_store::update_session_record(new_record);
+                    home.tcp_stream = Some(Arc::new(Mutex::new(stream)));
                 }
-            });
-            // Update in-memory session table as before.
+                Err(e) => {
+                    let mut prog = progress_clone.lock().unwrap();
+                    prog.state = ConnectionState::Failed(format!("Error connecting: {}", e));
+                }
+            };
             let hostname = whoami::username();
             let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
             let now = chrono::Utc::now().to_rfc3339();
@@ -386,7 +373,6 @@ pub fn handle_enter_key(
         return;
     }
 
-    // Otherwise handle normal input (i.e. the API scenario)
     match input_box.submit_message() {
         Ok(api) => {
             if let Err(e) = crate::core_mod::core::create_config(&api) {
@@ -454,8 +440,23 @@ pub fn handle_backspace_key(input_box: &mut InputBox) {
     }
 }
 
-pub fn handle_o_key(home: &mut Home) {
+pub fn handle_o_key(
+    home: &mut Home,
+    state_snapshot: &crate::state::state::StateSnapshot,
+    debug: &mut DebugScreen,
+) {
     if home.current_screen == ScreenState::Sessions {
-        crate::internal::open_file::open_explorer_and_file_select();
+        crate::internal::open_file::open_explorer_and_file_select(state_snapshot, debug);
     }
 }
+// +pub fn create_session_record() -> session_store::SessionRecord {
+// +    let hostname = whoami::username();
+// +    let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+// +    let now = chrono::Utc::now().to_rfc3339();
+// +    session_store::SessionRecord {
+// +        name: hostname,
+// +        ip,
+// +        last_transfer: "N/A".to_string(),
+// +        last_connection: now,
+// +    }
+// +}

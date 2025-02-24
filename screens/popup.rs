@@ -127,6 +127,7 @@ pub enum InputMode {
 }
 
 impl InputBox {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             input_mode: InputMode::Normal,
@@ -291,7 +292,6 @@ impl InputBox {
 }
 
 impl Home {
-    // We keep only a single `render_notification` here to avoid duplication
     pub fn render_notification(&mut self, frame: &mut Frame) {
         self.popup_dialog = ConfirmDialogState::default()
             .modal(true)
