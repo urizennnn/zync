@@ -88,7 +88,10 @@ pub fn update_session_record(new_record: SessionRecord) {
         if record.name == new_record.name {
             record.ip = new_record.ip.clone();
             record.last_connection = new_record.last_connection.clone();
+            record.last_transfer = new_record.last_transfer.clone();
             found = true;
+            break;
+        }
             break;
         }
     }
