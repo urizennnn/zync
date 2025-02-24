@@ -12,6 +12,31 @@ pub struct SessionRecord {
     pub ip: String,
     pub last_transfer: String,
     pub last_connection: String,
+    
+    #[serde(skip)]
+    validated: bool
+}
+
+impl SessionRecord {
+    pub fn new(name: String, ip: String, last_transfer: String, last_connection: String) -> Result<Self, String> {
+        // Validate IP format
+        if !ip.chars().all(|c| c.is_ascii_digit() || c == '.') {
+            return Err("Invalid IP format".to_string());
+        }
+        
+        // Validate timestamp format
+        if let Err(_) = chrono::DateTime::parse_from_rfc3339(&last_connection) {
+            return Err("Invalid timestamp format".to_string());
+        }
+        
+        Ok(Self {
+            name,
+            ip,
+            last_transfer,
+            last_connection,
+            validated: true
+        })
+    }
 }
 
 /// Returns the file path for today's session record.
