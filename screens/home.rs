@@ -17,7 +17,7 @@ use ratatui::{
     text::Line,
     widgets::{Block, Paragraph, Widget},
 };
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -232,38 +232,50 @@ impl Home {
         let _ = area;
     }
     pub fn spawn_upload_handler_if_needed(&mut self) {
-        static UPLOAD_THREAD_CREATED: once_cell::sync::OnceCell<bool> =
+        static UPLOAD_TASK_SPAWNED: once_cell::sync::OnceCell<bool> =
             once_cell::sync::OnceCell::new();
 
         if self.tcp_stream.is_none() {
             return;
         }
-        if UPLOAD_THREAD_CREATED.get().is_some() {
+        if UPLOAD_TASK_SPAWNED.get().is_some() {
             return;
         }
-        UPLOAD_THREAD_CREATED.set(true).ok();
+        UPLOAD_TASK_SPAWNED.set(true).ok();
 
         let stream_arc = Arc::clone(self.tcp_stream.as_ref().unwrap());
-        std::thread::spawn(move || {
-            GLOBAL_RUNTIME.block_on(async move {
-                let mut buffer = vec![0u8; 5_242_880];
-                loop {
-                    let mut guard: std::sync::MutexGuard<'_, tokio::net::TcpStream> =
-                        stream_arc.lock().unwrap();
-                    match crate::internal::handle_upload::handle_incoming_upload(
-                        &mut guard,
-                        &mut buffer,
-                    )
-                    .await
-                    {
-                        Ok(_) => {}
-                        Err(e) => {
-                            eprint!("Error while handling upload: {}", e);
-                            break;
-                        }
+        GLOBAL_RUNTIME.spawn(async move {
+            let buffer = vec![0u8; 5_242_880];
+            loop {
+                let result = tokio::task::spawn_blocking({
+                    let stream_arc = Arc::clone(&stream_arc);
+                    // Clone the buffer for the blocking context.
+                    let mut buffer_clone = buffer.clone();
+                    move || {
+                        let mut guard = stream_arc.lock().unwrap();
+                        // Bridge into async code from this blocking thread.
+                        GLOBAL_RUNTIME.block_on(
+                            crate::internal::handle_upload::handle_incoming_upload(
+                                &mut guard,
+                                &mut buffer_clone,
+                            ),
+                        )
+                    }
+                })
+                .await;
+                match result {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => {
+                        eprintln!("Error while handling upload: {}", e);
+                        break;
+                    }
+                    Err(e) => {
+                        eprintln!("spawn_blocking error: {}", e);
+                        break;
                     }
                 }
-            });
+                tokio::task::yield_now().await;
+            }
         });
     }
     pub fn new() -> Self {

@@ -1,9 +1,10 @@
 use crate::core_mod::widgets::TableWidget;
+use crate::init::GLOBAL_RUNTIME;
 use crate::internal::session_store;
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
 use crate::screens::host_type::{HostType, HostTypePopup};
-use crate::screens::popup::{InputBox, InputMode, FLAG};
+use crate::screens::popup::{FLAG, InputBox, InputMode};
 use crate::screens::protocol_popup::{ConnectionPopup, ConnectionType};
 use crate::state::state::{ConnectionState, ScreenState};
 use std::sync::{Arc, Mutex};
@@ -229,7 +230,7 @@ pub fn handle_enter_key(
                     prog.state = ConnectionState::Connecting;
                 }
                 let progress_clone = progress.clone();
-                match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port)) {
+                match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port), &GLOBAL_RUNTIME) {
                     Ok((socket, _addr)) => {
                         let mut prog = progress_clone.lock().unwrap();
                         prog.state = ConnectionState::Connected;

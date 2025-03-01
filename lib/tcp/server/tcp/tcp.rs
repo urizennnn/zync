@@ -14,9 +14,9 @@ pub struct TCP;
 impl TCP {
     pub fn accept_connection_sync(
         addr: &str,
+        global_rt: &tokio::runtime::Runtime,
     ) -> Result<(TcpStream, std::net::SocketAddr), Box<dyn Error>> {
-        let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(async {
+        global_rt.block_on(async {
             let listener = TcpListener::bind(addr).await?;
             let (socket, addr) = listener.accept().await?;
             Ok((socket, addr))
@@ -62,9 +62,9 @@ impl TCP {
             info!("Received request: {}", request);
 
             match AllowedRequest::from_str_slice(&request) {
-                Some(AllowedRequest::Put) => {
-                    put(&mut stream, &mut buffer).await?;
-                }
+                // Some(AllowedRequest::Put) => {
+                //     put(&mut stream, &mut buffer).await?;
+                // }
                 Some(AllowedRequest::List) => {
                     list::list_storage(&mut stream).await?;
                 }
@@ -73,6 +73,7 @@ impl TCP {
                 }
                 Some(AllowedRequest::Get) => get_file(&mut stream, &mut buffer).await?,
                 None => {}
+                _ => {}
             }
 
             stream.flush().await?;

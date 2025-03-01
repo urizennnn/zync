@@ -8,11 +8,11 @@ use std::{
 use color_eyre;
 use crossterm::{
     event, execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use log;
 use once_cell::sync::Lazy;
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use tokio::runtime::Runtime;
 use tui_logger;
 

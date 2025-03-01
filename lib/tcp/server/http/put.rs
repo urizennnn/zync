@@ -3,25 +3,20 @@ use log::{info, warn};
 use std::error::Error;
 use std::path::Path;
 use tokio::{
-    fs::{create_dir_all, File},
+    fs::{File, create_dir_all},
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
 
 #[deny(clippy::never_loop)]
 #[deny(clippy::ptr_arg)]
-pub async fn put(stream: &mut TcpStream, buffer: &mut [u8]) -> Result<(), Box<dyn Error>> {
+pub async fn put(
+    stream: &mut TcpStream,
+    buffer: &mut [u8],
+    command: &str,
+) -> Result<(), Box<dyn Error>> {
     println!("Processing PUT request");
-    let buf = stream.read(buffer).await?;
-    let buf_string = String::from_utf8_lossy(&buffer[..buf])
-        .trim_matches(char::from(0))
-        .trim()
-        .to_string();
-    let parts: Vec<&str> = buf_string.split_whitespace().collect();
-
-    if parts.len() != 3 || parts[0] != "UPLOAD" {
-        return Err("Invalid upload command".into());
-    }
+    let parts: Vec<&str> = command.split_whitespace().collect();
 
     let file_name = parts[1];
     let full_path = format!("{}{}", STORAGE_PATH, file_name);

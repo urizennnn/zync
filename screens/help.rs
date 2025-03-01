@@ -1,10 +1,10 @@
 pub mod help_popup {
     use ratatui::{
+        Frame,
         layout::{Alignment, Rect},
         style::{Color, Style},
         text::{Line, Span},
         widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
-        Frame,
     };
 
     use crate::utils::calculate::calculate_popup_area;

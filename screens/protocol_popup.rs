@@ -1,10 +1,10 @@
 use crate::screens::popup::InputBox;
 use crate::utils::calculate::{calculate_popup_area, centered_rect};
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Tabs};
-use ratatui::Frame;
 use strum::IntoEnumIterator;
 use strum::{Display, EnumIter, FromRepr};
 

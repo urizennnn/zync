@@ -19,7 +19,6 @@ pub fn open_explorer_and_file_select(state: &StateSnapshot, debug_screen: &mut D
             let mut stream = stream_arc.lock().unwrap();
             let mut buffer = vec![0u8; 209715200];
 
-            // CHANGED: use the global runtime instead of creating a new one
             let result =
                 crate::init::GLOBAL_RUNTIME.block_on(upload(&mut stream, &file_path, &mut buffer));
 

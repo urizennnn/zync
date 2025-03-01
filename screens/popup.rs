@@ -3,7 +3,7 @@ use ratatui::layout::{Constraint, Layout, Position};
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Span, Text};
 use ratatui::widgets::{Block, Paragraph, Wrap};
-use ratatui::{layout::Alignment, style::Color, Frame};
+use ratatui::{Frame, layout::Alignment, style::Color};
 use ratatui::{layout::Rect, text::Line, widgets::Clear};
 use tui_confirm_dialog::{ButtonLabel, ConfirmDialog, ConfirmDialogState};
 

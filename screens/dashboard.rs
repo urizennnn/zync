@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
-    Frame,
 };
 use std::sync::{Arc, Mutex};
 
