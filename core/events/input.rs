@@ -1,4 +1,5 @@
-use crate::core_mod::widgets::TableWidget;
+use crate::core_mod::widgets::{Item, TableWidget};
+use crate::core_mod::{self, widgets};
 use crate::init::GLOBAL_RUNTIME;
 use crate::internal::session_store;
 use crate::screens::debug::DebugScreen;
@@ -169,7 +170,7 @@ pub fn handle_enter_key(
 
     if table.active {
         if let Some(selected) = table.enter() {
-            if let crate::core_mod::widgets::SelectedItem::Device(device) = selected {
+            if let widgets::SelectedItem::Device(device) = selected {
                 if let Some(files) = device.files.clone() {
                     for file in files {
                         table.add_item(
@@ -270,7 +271,7 @@ pub fn handle_enter_key(
                 };
                 let mut found = false;
                 for item in table.items.iter_mut() {
-                    if let crate::core_mod::widgets::Item::Device(ref mut d) = item {
+                    if let Item::Device(d) = item {
                         if d.name == hostname {
                             d.ip = ip.clone();
                             d.last_connection.total = now.clone();
@@ -281,9 +282,7 @@ pub fn handle_enter_key(
                     }
                 }
                 if !found {
-                    table
-                        .items
-                        .push(crate::core_mod::widgets::Item::Device(new_device));
+                    table.items.push(Item::Device(new_device));
                 }
 
                 input_box.input.clear();
@@ -355,20 +354,19 @@ pub fn handle_enter_key(
             };
             let mut found = false;
             for item in table.items.iter_mut() {
-                if let crate::core_mod::widgets::Item::Device(ref mut d) = item {
-                    if d.name == hostname {
-                        d.ip = ip.clone();
-                        d.last_connection.total = now.clone();
-                        d.last_connection.format_date = now.clone();
-                        found = true;
-                        break;
-                    }
+                let Item::Device(d): &mut Item = item else {
+                    continue;
+                };
+                if d.name == hostname {
+                    d.ip = ip.clone();
+                    d.last_connection.total = now.clone();
+                    d.last_connection.format_date = now.clone();
+                    found = true;
+                    break;
                 }
             }
             if !found {
-                table
-                    .items
-                    .push(crate::core_mod::widgets::Item::Device(new_device));
+                table.items.push(Item::Device(new_device));
             }
         }
         return;
@@ -376,7 +374,7 @@ pub fn handle_enter_key(
 
     match input_box.submit_message() {
         Ok(api) => {
-            if let Err(e) = crate::core_mod::core::create_config(&api) {
+            if let Err(e) = core_mod::core::create_config(&api) {
                 error.set_val(
                     e.to_string(),
                     &mut crate::screens::error::error_widget::ErrorType::Warning,

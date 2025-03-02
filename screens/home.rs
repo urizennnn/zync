@@ -7,6 +7,7 @@ use crate::events::input::{
 };
 use crate::events::ui_update::UIUpdate;
 use crate::init::GLOBAL_RUNTIME;
+use crate::internal::handle_upload::handle_incoming_upload;
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
@@ -249,17 +250,11 @@ impl Home {
             loop {
                 let result = tokio::task::spawn_blocking({
                     let stream_arc = Arc::clone(&stream_arc);
-                    // Clone the buffer for the blocking context.
                     let mut buffer_clone = buffer.clone();
                     move || {
                         let mut guard = stream_arc.lock().unwrap();
-                        // Bridge into async code from this blocking thread.
-                        GLOBAL_RUNTIME.block_on(
-                            crate::internal::handle_upload::handle_incoming_upload(
-                                &mut guard,
-                                &mut buffer_clone,
-                            ),
-                        )
+                        GLOBAL_RUNTIME
+                            .block_on(handle_incoming_upload(&mut guard, &mut buffer_clone))
                     }
                 })
                 .await;

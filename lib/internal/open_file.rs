@@ -1,8 +1,10 @@
+use crate::init::GLOBAL_RUNTIME;
 use crate::screens::debug::DebugScreen;
 use crate::screens::host_type::HostType;
 use crate::state::state::StateSnapshot;
 use rfd::FileDialog;
-use tcp_client::methods::upload::upload;
+use tcp_server::http::put::put;
+use tokio::io::AsyncWriteExt;
 
 pub fn open_explorer_and_file_select(state: &StateSnapshot, debug_screen: &mut DebugScreen) {
     let host = state.host.lock().unwrap();
@@ -19,8 +21,16 @@ pub fn open_explorer_and_file_select(state: &StateSnapshot, debug_screen: &mut D
             let mut stream = stream_arc.lock().unwrap();
             let mut buffer = vec![0u8; 209715200];
 
-            let result =
-                crate::init::GLOBAL_RUNTIME.block_on(upload(&mut stream, &file_path, &mut buffer));
+            GLOBAL_RUNTIME.block_on(async {
+                match stream.write_all(file_path.as_bytes()).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        // FIX: remove panic from here
+                        println!("{:?}", e)
+                    }
+                }
+            });
+            let result = GLOBAL_RUNTIME.block_on(put(&mut stream, &mut buffer, &file_path));
 
             match result {
                 Ok(_) => debug_screen.push_line("File uploaded successfully.".to_string()),
