@@ -1,11 +1,11 @@
 use crate::core_mod::widgets::{Item, TableWidget};
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     prelude::Stylize,
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Cell, Paragraph, Row, Table},
-    Frame,
 };
 use std::sync::{Arc, Mutex};
 

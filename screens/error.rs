@@ -1,10 +1,10 @@
 pub mod error_widget {
     use ratatui::{
+        Frame,
         layout::Alignment,
         style::Style,
         text::Line,
         widgets::{Clear, Paragraph},
-        Frame,
     };
 
     use crate::utils::calculate::calculate_popup_area;

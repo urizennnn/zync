@@ -4,10 +4,10 @@ use crate::{
     utils::calculate::calculate_popup_area,
 };
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 #[derive(Debug)]

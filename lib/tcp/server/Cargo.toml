@@ -16,3 +16,5 @@ log.workspace = true
 serde.workspace = true
 tokio.workspace = true
 serde_json.workspace= true 
+once_cell.workspace = true
+

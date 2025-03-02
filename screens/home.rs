@@ -6,6 +6,8 @@ use crate::events::input::{
     handle_help_key, handle_left_key, handle_n_key, handle_o_key, handle_q_key, handle_right_key,
 };
 use crate::events::ui_update::UIUpdate;
+use crate::init::GLOBAL_RUNTIME;
+use crate::internal::handle_upload::handle_incoming_upload;
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
@@ -16,7 +18,7 @@ use ratatui::{
     text::Line,
     widgets::{Block, Paragraph, Widget},
 };
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -35,6 +37,7 @@ pub struct Home {
     pub ui_update_rx: Receiver<UIUpdate>,
     pub popup_message: Option<String>,
     pub current_screen: ScreenState,
+    pub tcp_stream: Option<Arc<Mutex<tokio::net::TcpStream>>>,
 }
 
 impl Home {
@@ -48,6 +51,7 @@ impl Home {
         host: Arc<Mutex<HostTypePopup>>,
         debug_screen: Arc<Mutex<DebugScreen>>,
         progress: Arc<Mutex<crate::screens::connection_progress::ConnectionProgress>>,
+        state_snapshot: &crate::state::state::StateSnapshot,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Event::Key(key) = event {
             match key.code {
@@ -74,7 +78,7 @@ impl Home {
                     handle_esc_key(self, &mut input_box);
                 }
                 KeyCode::Char('o') => {
-                    handle_o_key(self);
+                    handle_o_key(self, state_snapshot, &mut debug_screen.lock().unwrap());
                 }
                 KeyCode::Right => {
                     let mut input_box = input_box.lock().unwrap();
@@ -148,7 +152,6 @@ impl Home {
         let debug_screen = Arc::new(Mutex::new(DebugScreen::new()));
 
         while self.running {
-            // Poll for UIUpdate messages
             while let Ok(update) = self.ui_update_rx.try_recv() {
                 match update {
                     UIUpdate::ShowPopup(msg) => {
@@ -161,19 +164,23 @@ impl Home {
                 }
             }
 
+            let state_snapshot = Arc::new(crate::state::state::StateSnapshot {
+                table: table.clone(),
+                help: help.clone(),
+                connection: connection.clone(),
+                input_box: input_box.clone(),
+                host: host.clone(),
+                progress: progress.clone(),
+                debug_screen: debug_screen.clone(),
+                stream: self.tcp_stream.clone(),
+            });
             match crate::core_mod::core::check_config() {
                 Ok(_) => {
-                    let state_snapshot = Arc::new(crate::state::state::StateSnapshot {
-                        table: table.clone(),
-                        help: help.clone(),
-                        connection: connection.clone(),
-                        input_box: input_box.clone(),
-                        host: host.clone(),
-                        progress: progress.clone(),
-                        debug_screen: debug_screen.clone(),
-                        stream: None,
-                    });
-                    crate::state::manager::manage_state(self, state_snapshot, term.clone())?;
+                    crate::state::manager::manage_state(
+                        self,
+                        state_snapshot.clone(),
+                        term.clone(),
+                    )?;
                 }
                 Err(_) => {
                     let input_box_guard = input_box.lock().unwrap();
@@ -197,7 +204,6 @@ impl Home {
                 }
             }
 
-            // Poll for new key events
             if let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) {
                 self.handle_event(
                     event,
@@ -208,6 +214,7 @@ impl Home {
                     host.clone(),
                     debug_screen.clone(),
                     progress.clone(),
+                    &state_snapshot.clone(),
                 )?;
             }
         }
@@ -225,15 +232,47 @@ impl Home {
     pub fn draw_commands(area: Rect, _buf: &mut ratatui::buffer::Buffer) {
         let _ = area;
     }
-}
+    pub fn spawn_upload_handler_if_needed(&mut self) {
+        static UPLOAD_TASK_SPAWNED: once_cell::sync::OnceCell<bool> =
+            once_cell::sync::OnceCell::new();
 
-impl Default for Home {
-    fn default() -> Self {
-        Self::new()
+        if self.tcp_stream.is_none() {
+            return;
+        }
+        if UPLOAD_TASK_SPAWNED.get().is_some() {
+            return;
+        }
+        UPLOAD_TASK_SPAWNED.set(true).ok();
+
+        let stream_arc = Arc::clone(self.tcp_stream.as_ref().unwrap());
+        GLOBAL_RUNTIME.spawn(async move {
+            let buffer = vec![0u8; 5_242_880];
+            loop {
+                let result = tokio::task::spawn_blocking({
+                    let stream_arc = Arc::clone(&stream_arc);
+                    let mut buffer_clone = buffer.clone();
+                    move || {
+                        let mut guard = stream_arc.lock().unwrap();
+                        GLOBAL_RUNTIME
+                            .block_on(handle_incoming_upload(&mut guard, &mut buffer_clone))
+                    }
+                })
+                .await;
+                match result {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => {
+                        eprintln!("Error while handling upload: {}", e);
+                        break;
+                    }
+                    Err(e) => {
+                        eprintln!("spawn_blocking error: {}", e);
+                        break;
+                    }
+                }
+                tokio::task::yield_now().await;
+            }
+        });
     }
-}
-
-impl Home {
     pub fn new() -> Self {
         let (tx, rx) = channel();
         let (ui_tx, ui_rx) = channel();
@@ -252,7 +291,14 @@ impl Home {
             ui_update_tx: ui_tx,
             ui_update_rx: ui_rx,
             popup_message: None,
+            tcp_stream: None,
         }
+    }
+}
+
+impl Default for Home {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

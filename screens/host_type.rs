@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Tabs},
-    Frame,
 };
 use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
 

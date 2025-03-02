@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use tokio::fs::{create_dir_all, File};
+use tokio::fs::{File, create_dir_all};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use whoami::username;
 

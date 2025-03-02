@@ -3171,6 +3171,7 @@ dependencies = [
  "bytes",
  "cargo-watch",
  "log",
+ "once_cell",
  "serde",
  "serde_json",
  "tokio",
@@ -4541,6 +4542,7 @@ name = "zync"
 version = "0.0.1-alpha"
 dependencies = [
  "better-panic",
+ "chrono",
  "color-eyre",
  "crossterm",
  "ctrlc",

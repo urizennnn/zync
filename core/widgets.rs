@@ -4,7 +4,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
-    style::{palette::tailwind, Color},
+    style::{Color, palette::tailwind},
     text::Line,
     widgets::{ScrollbarState, TableState},
 };

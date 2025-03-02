@@ -6,7 +6,7 @@ license="MIT"
 readme ="README.md"
 version = "0.0.1-alpha"
 keywords = ["cli", "file-transfer", "zync"]
-edition = "2021"
+edition = "2024"
 
 [workspace]
 members = [
@@ -68,3 +68,4 @@ tcp_server = { path = "./lib/tcp/server/" }
 tcp_client = { path = "./lib/tcp/client/" }
 ctrlc = "3.4.5"
 rfd = "0.15.2"
+chrono = "0.4.39"

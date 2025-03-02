@@ -4,8 +4,8 @@ use std::{
     error::Error,
     fmt::Debug,
     sync::{
-        mpsc::{self, Receiver, Sender},
         Arc, Mutex,
+        mpsc::{self, Receiver, Sender},
     },
     thread,
 };

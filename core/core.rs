@@ -2,7 +2,7 @@ use std::any::type_name;
 use std::{collections::BTreeMap, error::Error, fs};
 
 use nanoid::nanoid;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rand::{Rng, distributions::Alphanumeric, thread_rng};
 
 use crate::config::app::app_config_variables::{App, Files};
 

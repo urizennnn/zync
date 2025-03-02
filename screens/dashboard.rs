@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
-    Frame,
 };
 use std::sync::{Arc, Mutex};
 
@@ -25,14 +25,11 @@ pub struct Activity {
     pub time: String,
 }
 
-/// Draws the transfers screen and, at the top–right, renders the current connection status.
-/// Note the added parameter `progress` (an Arc–wrapped Mutex over your ConnectionProgress).
 pub fn table_ui(
     f: &mut Frame,
     table: &mut TableWidget,
     progress: Arc<Mutex<crate::screens::connection_progress::ConnectionProgress>>,
 ) {
-    // Clear the entire frame
     f.render_widget(Clear, f.area());
 
     let vertical_chunks = Layout::default()
@@ -54,19 +51,16 @@ pub fn table_ui(
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(vertical_chunks[2]);
 
-    // Main border around the transfers area
     let main_block = Block::default()
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded);
     f.render_widget(main_block, f.area());
 
-    // Horizontal line for separation
     let horizontal_line = Block::default()
         .borders(Borders::BOTTOM)
         .border_style(Style::default().fg(Color::White));
     f.render_widget(horizontal_line, vertical_chunks[1]);
 
-    // Vertical line for separation
     let vertical_line = Block::default()
         .borders(Borders::LEFT)
         .border_style(Style::default().fg(Color::White));
@@ -80,25 +74,21 @@ pub fn table_ui(
         },
     );
 
-    // "Recent Transfers" label (top–left)
     let top_left_text = Paragraph::new(Line::from("Recent Transfers").yellow())
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Center);
     f.render_widget(top_left_text, top_chunks[0]);
 
-    // "Activity Logs" label (top–right)
     let top_right_text = Paragraph::new(Line::from("Activity Logs").yellow())
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Center);
     f.render_widget(top_right_text, top_chunks[1]);
 
-    // Render the table
     let mut table_state = std::mem::take(&mut table.state);
     let stateful_table = draw_table(table);
     f.render_stateful_widget(stateful_table, main_chunks[0], &mut table_state);
     table.state = table_state;
 
-    // --- New: Render the connection status label in the top–right corner ---
     let connect_state = {
         let lock = progress.lock().unwrap();
         lock.state.clone()
@@ -130,7 +120,6 @@ pub fn table_ui(
     f.render_widget(status_text, corner_rect);
 }
 
-/// Helper: Draws the inner table of transfers.
 fn draw_table(table: &TableWidget) -> Table<'_> {
     let header_style = Style::default()
         .fg(table.colors.header_fg)

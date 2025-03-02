@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Rect},
     style::{Color, Style},
     text::{Line, Text},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 #[derive(Debug)]
