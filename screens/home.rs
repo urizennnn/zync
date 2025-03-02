@@ -22,6 +22,17 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+pub struct HomeDeps {
+    pub input_box: Arc<Mutex<InputBox>>,
+    pub table: Arc<Mutex<TableWidget>>,
+    pub connection: Arc<Mutex<ConnectionPopup>>,
+    pub error: Arc<Mutex<ErrorWidget>>,
+    pub host: Arc<Mutex<HostTypePopup>>,
+    pub debug_screen: Arc<Mutex<DebugScreen>>,
+    pub progress: Arc<Mutex<crate::screens::connection_progress::ConnectionProgress>>,
+    pub state_snapshot: Arc<crate::state::state::StateSnapshot>,
+}
+
 pub struct Home {
     pub running: bool,
     pub show_popup: bool,
@@ -44,84 +55,80 @@ impl Home {
     pub fn handle_event(
         &mut self,
         event: Event,
-        input_box: Arc<Mutex<InputBox>>,
-        table: Arc<Mutex<TableWidget>>,
-        connection: Arc<Mutex<ConnectionPopup>>,
-        error: Arc<Mutex<ErrorWidget>>,
-        host: Arc<Mutex<HostTypePopup>>,
-        debug_screen: Arc<Mutex<DebugScreen>>,
-        progress: Arc<Mutex<crate::screens::connection_progress::ConnectionProgress>>,
-        state_snapshot: &crate::state::state::StateSnapshot,
+        deps: &mut HomeDeps,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Event::Key(key) = event {
             match key.code {
                 KeyCode::Char('q') => {
-                    let mut input_box = input_box.lock().unwrap();
-                    let mut connection = connection.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
+                    let mut connection = deps.connection.lock().unwrap();
                     handle_q_key(self, &mut input_box, &mut connection);
                 }
                 KeyCode::Char('n') => {
-                    let mut input_box = input_box.lock().unwrap();
-                    let mut connection = connection.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
+                    let mut connection = deps.connection.lock().unwrap();
                     handle_n_key(self, 'n', &mut input_box, &mut connection);
                 }
                 KeyCode::Down => {
-                    let mut table = table.lock().unwrap();
+                    let mut table = deps.table.lock().unwrap();
                     table.next();
                 }
                 KeyCode::Up => {
-                    let mut table = table.lock().unwrap();
+                    let mut table = deps.table.lock().unwrap();
                     table.previous();
                 }
                 KeyCode::Esc => {
-                    let mut input_box = input_box.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
                     handle_esc_key(self, &mut input_box);
                 }
                 KeyCode::Char('o') => {
-                    handle_o_key(self, state_snapshot, &mut debug_screen.lock().unwrap());
+                    let mut debug_screen = deps.debug_screen.lock().unwrap();
+                    handle_o_key(self, &deps.state_snapshot, &mut debug_screen);
                 }
                 KeyCode::Right => {
-                    let mut input_box = input_box.lock().unwrap();
-                    let mut connection = connection.lock().unwrap();
-                    let mut host = host.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
+                    let mut connection = deps.connection.lock().unwrap();
+                    let mut host = deps.host.lock().unwrap();
                     handle_right_key(self, &mut input_box, &mut connection, &mut host);
                 }
                 KeyCode::Left => {
-                    let mut input_box = input_box.lock().unwrap();
-                    let mut connection = connection.lock().unwrap();
-                    let mut host = host.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
+                    let mut connection = deps.connection.lock().unwrap();
+                    let mut host = deps.host.lock().unwrap();
                     handle_left_key(self, &mut input_box, &mut connection, &mut host);
                 }
                 KeyCode::Enter => {
-                    let mut input_box = input_box.lock().unwrap();
-                    let mut error = error.lock().unwrap();
-                    let mut table = table.lock().unwrap();
-                    let mut host = host.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
+                    let mut error = deps.error.lock().unwrap();
+                    let mut table = deps.table.lock().unwrap();
+                    let mut host = deps.host.lock().unwrap();
+                    let progress = deps.progress.clone();
+
                     handle_enter_key(
                         self,
                         &mut input_box,
                         &mut error,
                         &mut table,
-                        connection.clone(),
+                        deps.connection.clone(),
                         &mut host,
-                        progress.clone(),
+                        progress,
                     );
                 }
                 KeyCode::Char('?') => {
-                    let mut table = table.lock().unwrap();
-                    let mut input_box = input_box.lock().unwrap();
+                    let mut table = deps.table.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
                     handle_help_key(self, &mut table, '?', &mut input_box);
                 }
                 KeyCode::Char(c) => {
                     if c == 'd' {
-                        let mut debug_screen = debug_screen.lock().unwrap();
+                        let mut debug_screen = deps.debug_screen.lock().unwrap();
                         handle_d_key(self, &mut debug_screen);
                     }
-                    let mut input_box = input_box.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
                     handle_char_key(c, &mut input_box);
                 }
                 KeyCode::Backspace => {
-                    let mut input_box = input_box.lock().unwrap();
+                    let mut input_box = deps.input_box.lock().unwrap();
                     handle_backspace_key(&mut input_box);
                 }
                 _ => {}
@@ -174,6 +181,18 @@ impl Home {
                 debug_screen: debug_screen.clone(),
                 stream: self.tcp_stream.clone(),
             });
+
+            let mut deps = HomeDeps {
+                input_box: input_box.clone(),
+                table: table.clone(),
+                connection: connection.clone(),
+                error: error.clone(),
+                host: host.clone(),
+                debug_screen: debug_screen.clone(),
+                progress: progress.clone(),
+                state_snapshot: state_snapshot.clone(),
+            };
+
             match crate::core_mod::core::check_config() {
                 Ok(_) => {
                     crate::state::manager::manage_state(
@@ -205,17 +224,7 @@ impl Home {
             }
 
             if let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) {
-                self.handle_event(
-                    event,
-                    input_box.clone(),
-                    table.clone(),
-                    connection.clone(),
-                    error.clone(),
-                    host.clone(),
-                    debug_screen.clone(),
-                    progress.clone(),
-                    &state_snapshot.clone(),
-                )?;
+                self.handle_event(event, &mut deps)?;
             }
         }
         Ok(())
@@ -232,6 +241,7 @@ impl Home {
     pub fn draw_commands(area: Rect, _buf: &mut ratatui::buffer::Buffer) {
         let _ = area;
     }
+
     pub fn spawn_upload_handler_if_needed(&mut self) {
         static UPLOAD_TASK_SPAWNED: once_cell::sync::OnceCell<bool> =
             once_cell::sync::OnceCell::new();
@@ -247,32 +257,29 @@ impl Home {
         let stream_arc = Arc::clone(self.tcp_stream.as_ref().unwrap());
         GLOBAL_RUNTIME.spawn(async move {
             let buffer = vec![0u8; 5_242_880];
-            loop {
-                let result = tokio::task::spawn_blocking({
-                    let stream_arc = Arc::clone(&stream_arc);
-                    let mut buffer_clone = buffer.clone();
-                    move || {
-                        let mut guard = stream_arc.lock().unwrap();
-                        GLOBAL_RUNTIME
-                            .block_on(handle_incoming_upload(&mut guard, &mut buffer_clone))
-                    }
-                })
-                .await;
-                match result {
-                    Ok(Ok(())) => {}
-                    Ok(Err(e)) => {
-                        eprintln!("Error while handling upload: {}", e);
-                        break;
-                    }
-                    Err(e) => {
-                        eprintln!("spawn_blocking error: {}", e);
-                        break;
-                    }
+            let result = tokio::task::spawn_blocking({
+                let stream_arc = Arc::clone(&stream_arc);
+                let mut buffer_clone = buffer.clone();
+                move || {
+                    let mut guard = stream_arc.lock().unwrap();
+                    GLOBAL_RUNTIME.block_on(handle_incoming_upload(&mut guard, &mut buffer_clone))
                 }
-                tokio::task::yield_now().await;
+            })
+            .await;
+
+            match result {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => {
+                    eprintln!("Error while handling upload: {}", e);
+                }
+                Err(e) => {
+                    eprintln!("spawn_blocking error: {}", e);
+                }
             }
+            tokio::task::yield_now().await;
         });
     }
+
     pub fn new() -> Self {
         let (tx, rx) = channel();
         let (ui_tx, ui_rx) = channel();
