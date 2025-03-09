@@ -2,7 +2,7 @@ use super::debug::DebugScreen;
 use super::host_type::HostTypePopup;
 use super::session::{Connection, Device, Transfer};
 use crate::core_mod::widgets::{Item, TableWidget};
-use crate::core_mod::{self, widgets};
+use crate::core_mod::{self};
 use crate::events::input::{
     handle_backspace_key, handle_char_key, handle_d_key, handle_enter_key, handle_esc_key,
     handle_help_key, handle_left_key, handle_n_key, handle_o_key, handle_q_key, handle_right_key,
@@ -16,6 +16,10 @@ use crate::screens::{
 };
 use crate::state::state::ScreenState;
 use crossterm::event::{Event, KeyCode};
+use ratatui::layout::{Constraint, Layout};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::Span;
+use ratatui::widgets::Borders;
 use ratatui::{
     layout::Rect,
     text::Line,
@@ -24,6 +28,7 @@ use ratatui::{
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tui_big_text::BigText;
 
 pub struct HomeDeps {
     pub input_box: Arc<Mutex<InputBox>>,
@@ -227,7 +232,7 @@ impl Home {
                 }
                 Err(_) => {
                     let input_box_guard = input_box.lock().unwrap();
-                    let mut error_guard = error.lock().unwrap();
+                    let error_guard = error.lock().unwrap();
                     term.lock().unwrap().draw(|f| {
                         let area = f.area();
                         self.render(area, f.buffer_mut());
@@ -241,7 +246,7 @@ impl Home {
                             api_popup.render_url(f);
                         }
                         if self.error {
-                            error_guard.render_popup(f);
+                            error_guard.render_centered_popup(f);
                         }
                     })?;
                 }
@@ -254,18 +259,57 @@ impl Home {
         Ok(())
     }
 
-    pub fn create_border(input: &str, _show_popup: bool) -> Block {
-        Block::default().title(input)
+    fn create_big_text() -> (BigText<'static>, Vec<Line<'static>>) {
+        let text = tui_big_text::BigTextBuilder::default()
+            .pixel_size(tui_big_text::PixelSize::Quadrant)
+            .lines(["ZYNC".into()])
+            .style(Style::default().fg(ratatui::style::Color::Red))
+            .build();
+        let line = Home::create_line();
+        (text, line)
     }
 
-    pub fn create_big_text() -> (Paragraph<'static>, Vec<Line<'static>>) {
-        (Paragraph::new("Big Text"), vec![Line::from("Normal Text")])
+    fn create_line() -> Vec<Line<'static>> {
+        let line = "Welcome to Zync. Hit n to start your new file sharing session.";
+        let styled_text = Span::styled(line, Style::default().add_modifier(Modifier::BOLD));
+        vec![Line::from(styled_text)]
     }
 
-    pub fn draw_commands(area: Rect, _buf: &mut ratatui::buffer::Buffer) {
-        let _ = area;
+    fn create_border(input: &str, show_popup: bool) -> Block {
+        let title = if show_popup {
+            "Hit Esc to close popup"
+        } else {
+            input
+        };
+
+        let border_style = if show_popup {
+            Style::default().fg(ratatui::style::Color::Yellow)
+        } else {
+            Style::default().fg(ratatui::style::Color::White)
+        };
+
+        Block::new()
+            .border_type(ratatui::widgets::BorderType::Rounded)
+            .borders(Borders::TOP)
+            .title(Line::from(title).centered())
+            .style(border_style)
     }
 
+    fn draw_commands(area: Rect, buf: &mut ratatui::prelude::Buffer) {
+        let command_layout = Layout::default()
+            .direction(ratatui::layout::Direction::Horizontal)
+            .constraints([Constraint::Length(10), Constraint::Min(20)])
+            .split(area);
+
+        let label = Paragraph::new("Commands")
+            .style(Style::default().add_modifier(Modifier::BOLD))
+            .alignment(ratatui::layout::Alignment::Left);
+        label.render(command_layout[0], buf);
+
+        let commands_text = "q: Quit | n: Start a new file sharing session";
+        let commands = Paragraph::new(commands_text).alignment(ratatui::layout::Alignment::Right);
+        commands.render(command_layout[1], buf);
+    }
     pub fn spawn_upload_handler_if_needed(&mut self) {
         static UPLOAD_TASK_SPAWNED: once_cell::sync::OnceCell<bool> =
             once_cell::sync::OnceCell::new();

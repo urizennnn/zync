@@ -32,7 +32,7 @@ pub fn init_app() -> Result<(), Box<dyn Error>> {
     std::panic::set_hook(Box::new(move |panic_info| {
         let _ = restore_tui();
         original_hook(panic_info);
-        eprintln!("Application panicked. Exiting.");
+        log::error!("Application panicked. Exiting.");
         std::process::exit(1);
     }));
 

@@ -2,6 +2,7 @@ use crate::init::GLOBAL_RUNTIME;
 use crate::screens::debug::DebugScreen;
 use crate::screens::host_type::HostType;
 use crate::state::state::StateSnapshot;
+use log::{error, info};
 use rfd::FileDialog;
 use tcp_server::http::put::put;
 use tokio::io::AsyncWriteExt;
@@ -25,8 +26,8 @@ pub fn open_explorer_and_file_select(state: &StateSnapshot, debug_screen: &mut D
                 match stream.write_all(file_path.as_bytes()).await {
                     Ok(_) => {}
                     Err(e) => {
-                        // FIX: remove panic from here
-                        println!("{:?}", e)
+                        // Previously: println!("{:?}", e)
+                        error!("Error writing path to stream: {e}");
                     }
                 }
             });
