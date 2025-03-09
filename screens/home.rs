@@ -1,6 +1,8 @@
 use super::debug::DebugScreen;
 use super::host_type::HostTypePopup;
-use crate::core_mod::widgets::TableWidget;
+use super::session::{Connection, Device, Transfer};
+use crate::core_mod::widgets::{Item, TableWidget};
+use crate::core_mod::{self, widgets};
 use crate::events::input::{
     handle_backspace_key, handle_char_key, handle_d_key, handle_enter_key, handle_esc_key,
     handle_help_key, handle_left_key, handle_n_key, handle_o_key, handle_q_key, handle_right_key,
@@ -8,6 +10,7 @@ use crate::events::input::{
 use crate::events::ui_update::UIUpdate;
 use crate::init::GLOBAL_RUNTIME;
 use crate::internal::handle_upload::handle_incoming_upload;
+use crate::internal::session_store::load_sessions;
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
 };
@@ -158,6 +161,27 @@ impl Home {
         let host = Arc::new(Mutex::new(HostTypePopup::new()));
         let debug_screen = Arc::new(Mutex::new(DebugScreen::new()));
 
+        {
+            let records = load_sessions();
+            let mut t = table.lock().unwrap();
+            for rec in records {
+                t.items.push(Item::Device(Device {
+                    name: rec.name,
+                    ip: rec.ip,
+                    last_transfer: Transfer {
+                        status: rec.last_transfer,
+                        size: "N/A".to_string(),
+                        name: "N/A".to_string(),
+                    },
+                    last_connection: Connection {
+                        total: rec.last_connection.clone(),
+                        format_date: rec.last_connection,
+                    },
+                    files: None,
+                }));
+            }
+        }
+
         while self.running {
             while let Ok(update) = self.ui_update_rx.try_recv() {
                 match update {
@@ -193,7 +217,7 @@ impl Home {
                 state_snapshot: state_snapshot.clone(),
             };
 
-            match crate::core_mod::core::check_config() {
+            match core_mod::core::check_config() {
                 Ok(_) => {
                     crate::state::manager::manage_state(
                         self,
@@ -269,11 +293,11 @@ impl Home {
 
             match result {
                 Ok(Ok(())) => {}
-                Ok(Err(e)) => {
-                    eprintln!("Error while handling upload: {}", e);
+                Ok(Err(_e)) => {
+                    // Removed the eprintln! calls here
                 }
-                Err(e) => {
-                    eprintln!("spawn_blocking error: {}", e);
+                Err(_e) => {
+                    // Removed the eprintln! call here
                 }
             }
             tokio::task::yield_now().await;

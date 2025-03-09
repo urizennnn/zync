@@ -30,6 +30,7 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
     if home.show_api_popup {
         handle_char_key('q', input_box);
     } else if home.show_popup {
+        // Removed the eprintln! call for "Failed to send popup confirmation"
         home.popup_tx
             .send((home.selected_button as u16, Some(false)))
             .ok();
@@ -91,6 +92,7 @@ pub fn handle_esc_key(home: &mut Home, input_box: &mut InputBox) {
         }
         _ => {
             if home.show_popup {
+                // Removed the eprintln! call for "Failed to send popup confirmation"
                 home.popup_tx
                     .send((home.selected_button as u16, Some(false)))
                     .ok();
@@ -119,6 +121,7 @@ pub fn handle_right_key(
 ) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
+        // Removed the eprintln! call for "Failed to send popup confirmation"
         home.popup_tx.send((home.selected_button as u16, None)).ok();
     } else if input_box.input_mode == InputMode::Editing {
         input_box.move_cursor_right();
@@ -137,6 +140,7 @@ pub fn handle_left_key(
 ) {
     if home.show_popup {
         home.selected_button = (home.selected_button + 1) % 2;
+        // Removed the eprintln! call for "Failed to send popup confirmation"
         home.popup_tx.send((home.selected_button as u16, None)).ok();
     } else if input_box.input_mode == InputMode::Editing {
         input_box.move_cursor_left();
@@ -158,11 +162,12 @@ pub fn handle_enter_key(
 ) {
     let mut connection = connection_arc.lock().unwrap();
     if home.show_popup {
-        if let Err(e) = home
+        // Removed the eprintln! call for "Failed to send popup confirmation"
+        if let Err(_e) = home
             .popup_tx
             .send((home.selected_button as u16, Some(true)))
         {
-            eprintln!("Failed to send popup confirmation: {}", e);
+            // do nothing
         }
         home.show_popup = false;
         return;
@@ -448,14 +453,3 @@ pub fn handle_o_key(
         crate::internal::open_file::open_explorer_and_file_select(state_snapshot, debug);
     }
 }
-// +pub fn create_session_record() -> session_store::SessionRecord {
-// +    let hostname = whoami::username();
-// +    let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
-// +    let now = chrono::Utc::now().to_rfc3339();
-// +    session_store::SessionRecord {
-// +        name: hostname,
-// +        ip,
-// +        last_transfer: "N/A".to_string(),
-// +        last_connection: now,
-// +    }
-// +}

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, create_dir_all},
+    fs::{self, File, create_dir_all},
     io::Read,
     path::PathBuf,
 };
@@ -23,17 +23,48 @@ fn get_session_file_path() -> PathBuf {
     dir
 }
 
+/// This helper gives us just the "zync/sessions" directory
+fn get_session_dir_path() -> PathBuf {
+    let mut dir = dirs::data_local_dir().unwrap_or_else(|| std::env::current_dir().unwrap());
+    dir.push("zync");
+    dir.push("sessions");
+    dir
+}
+
+/// Loads *all* session records found in the "zync/sessions" directory
 pub fn load_sessions() -> Vec<SessionRecord> {
-    let path = get_session_file_path();
-    if path.exists() {
-        let mut file = fs::File::open(&path).expect("Failed to open session file");
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)
-            .expect("Failed to read session file");
-        serde_json::from_str(&contents).unwrap_or_else(|_| Vec::new())
-    } else {
-        Vec::new()
+    let session_dir = get_session_dir_path();
+    let mut all_records = Vec::new();
+
+    if session_dir.exists() {
+        if let Ok(entries) = fs::read_dir(&session_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(fname) = path.file_name().and_then(|f| f.to_str()) {
+                        // Only consider files named "session_... .json"
+                        if fname.starts_with("session_") && fname.ends_with(".json") {
+                            let mut contents = String::new();
+                            if let Ok(mut file) = File::open(&path) {
+                                if file.read_to_string(&mut contents).is_ok() {
+                                    match serde_json::from_str::<Vec<SessionRecord>>(&contents) {
+                                        Ok(records) => {
+                                            all_records.extend(records);
+                                        }
+                                        Err(_) => {
+                                            // skip corrupted or non-Vec JSON
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    all_records
 }
 
 pub fn save_sessions(sessions: &[SessionRecord]) {
@@ -47,8 +78,10 @@ pub fn save_sessions(sessions: &[SessionRecord]) {
 }
 
 pub fn update_session_record(new_record: SessionRecord) {
+    // We load *all* existing session records first:
     let mut sessions = load_sessions();
     let mut found = false;
+
     for record in sessions.iter_mut() {
         if record.name == new_record.name {
             record.ip = new_record.ip.clone();
@@ -57,8 +90,12 @@ pub fn update_session_record(new_record: SessionRecord) {
             break;
         }
     }
+
     if !found {
         sessions.push(new_record);
     }
+
+    // By default, `save_sessions` still writes only to the “current day’s” session file.
+    // If you’d like to store new records differently, update `save_sessions` accordingly.
     save_sessions(&sessions);
 }
