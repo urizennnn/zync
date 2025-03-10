@@ -1,10 +1,12 @@
-use std::net::UdpSocket;
+use igd::{PortMappingProtocol, search_gateway};
+use std::error::Error;
+use std::net::{Ipv4Addr, SocketAddrV4};
 
-pub fn get_local_ip() -> Option<String> {
-    let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
-    socket.connect("8.8.8.8:80").ok()?; // Dummy connection
-    socket.local_addr().ok().map(|addr| addr.ip().to_string())
-}
+/// Example placeholder for your own local IP function.
+///
+/// This uses a UDP “connect” trick to discover your LAN IP address.
+
+/// Example of retrieving your public IP from the outside
 pub async fn get_public_ip() -> Result<String, reqwest::Error> {
     let response = reqwest::get("https://api.ipify.org?format=text").await?;
     let ip = response.text().await?;

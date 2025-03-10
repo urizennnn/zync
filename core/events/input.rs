@@ -1,7 +1,8 @@
 use crate::core_mod::widgets::{Item, TableWidget};
 use crate::core_mod::{self, widgets};
 use crate::init::GLOBAL_RUNTIME;
-use crate::internal::session_store;
+use crate::internal::forward_port::{forward_port_igd, get_local_ip};
+use crate::internal::{forward_port, session_store};
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
 use crate::screens::host_type::{HostType, HostTypePopup};
@@ -11,7 +12,6 @@ use crate::state::state::{ConnectionState, ScreenState};
 use std::sync::{Arc, Mutex};
 
 use tcp_client::app::connect_sync;
-use tcp_client::utils::get_ip::get_local_ip;
 use tcp_server::tcp::tcp::TCP;
 
 pub fn handle_help_key(
@@ -236,12 +236,16 @@ pub fn handle_enter_key(
                     prog.state = ConnectionState::Connecting;
                 }
                 let progress_clone = progress.clone();
-                match TCP::accept_connection_sync(&format!("0.0.0.0:{}", port), &GLOBAL_RUNTIME) {
+                let addr = &format!("0.0.0.0:{}", port);
+                if let Err(e) = forward_port_igd(addr) {
+                    log::warn!("UPnP port-forwarding failed: {}", e);
+                }
+                match TCP::accept_connection_sync(addr, &GLOBAL_RUNTIME) {
                     Ok((socket, _addr)) => {
                         let mut prog = progress_clone.lock().unwrap();
                         prog.state = ConnectionState::Connected;
                         let hostname = whoami::username();
-                        let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+                        let ip = get_local_ip().unwrap_or_else(|_e| "unknown".to_string());
                         let now = chrono::Utc::now().to_rfc3339();
                         let new_record = session_store::SessionRecord {
                             name: hostname.clone(),
@@ -258,7 +262,7 @@ pub fn handle_enter_key(
                     }
                 };
                 let hostname = whoami::username();
-                let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+                let ip = get_local_ip().unwrap_or_else(|_e| "unknown".to_string());
                 let now = chrono::Utc::now().to_rfc3339();
                 let new_device = crate::screens::session::Device {
                     name: hostname.clone(),
@@ -324,7 +328,7 @@ pub fn handle_enter_key(
                     let mut prog = progress_clone.lock().unwrap();
                     prog.state = ConnectionState::Connected;
                     let hostname = whoami::username();
-                    let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+                    let ip = get_local_ip().unwrap_or_else(|_e| "unknown".to_string());
                     let now = chrono::Utc::now().to_rfc3339();
                     let new_record = session_store::SessionRecord {
                         name: hostname.clone(),
@@ -341,7 +345,7 @@ pub fn handle_enter_key(
                 }
             };
             let hostname = whoami::username();
-            let ip = get_local_ip().unwrap_or_else(|| "unknown".to_string());
+            let ip = get_local_ip().unwrap_or("unknown".to_string());
             let now = chrono::Utc::now().to_rfc3339();
             let new_device = crate::screens::session::Device {
                 name: hostname.clone(),

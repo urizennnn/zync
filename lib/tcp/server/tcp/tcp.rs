@@ -18,8 +18,8 @@ impl TCP {
     ) -> Result<(TcpStream, std::net::SocketAddr), Box<dyn Error>> {
         global_rt.block_on(async {
             let listener = TcpListener::bind(addr).await?;
-            let (socket, addr) = listener.accept().await?;
-            Ok((socket, addr))
+            let (socket, client_addr) = listener.accept().await?;
+            Ok((socket, client_addr))
         })
     }
     pub async fn run(addr: &str) -> Result<(), Box<dyn Error>> {
