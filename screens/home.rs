@@ -222,35 +222,31 @@ impl Home {
                 state_snapshot: state_snapshot.clone(),
             };
 
-            match core_mod::core::check_config() {
-                Ok(_) => {
-                    crate::state::manager::manage_state(
-                        self,
-                        state_snapshot.clone(),
-                        term.clone(),
-                    )?;
-                }
-                Err(_) => {
-                    let input_box_guard = input_box.lock().unwrap();
-                    let error_guard = error.lock().unwrap();
-                    term.lock().unwrap().draw(|f| {
-                        let area = f.area();
-                        self.render(area, f.buffer_mut());
-                        if self.show_popup {
-                            self.render_notification(f);
-                        }
-                        if self.show_api_popup {
-                            api_popup.draw(f, &input_box_guard);
-                        }
-                        if self.render_url_popup {
-                            api_popup.render_url(f);
-                        }
-                        if self.error {
-                            error_guard.render_centered_popup(f);
-                        }
-                    })?;
-                }
-            }
+            crate::state::manager::manage_state(self, state_snapshot.clone(), term.clone())?;
+            // match core_mod::core::check_config() {
+            //     Ok(_) => {
+            //     }
+            //     Err(_) => {
+            //         let input_box_guard = input_box.lock().unwrap();
+            //         let error_guard = error.lock().unwrap();
+            //         term.lock().unwrap().draw(|f| {
+            //             let area = f.area();
+            //             self.render(area, f.buffer_mut());
+            //             if self.show_popup {
+            //                 self.render_notification(f);
+            //             }
+            //             if self.show_api_popup {
+            //                 api_popup.draw(f, &input_box_guard);
+            //             }
+            //             if self.render_url_popup {
+            //                 api_popup.render_url(f);
+            //             }
+            //             if self.error {
+            //                 error_guard.render_centered_popup(f);
+            //             }
+            //         })?;
+            //     }
+            // }
 
             if let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) {
                 self.handle_event(event, &mut deps)?;
