@@ -1,1 +1,1 @@
-pub static STORAGE_PATH: &str = "/home/kali/stress";
+pub static STORAGE_PATH: &str = "./";
