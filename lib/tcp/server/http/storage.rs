@@ -1,1 +1,1 @@
-pub static STORAGE_PATH: &str = "/home/urizen/stress/";
+pub static STORAGE_PATH: &str = "~/stress/";

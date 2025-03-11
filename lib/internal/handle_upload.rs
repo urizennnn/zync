@@ -1,6 +1,5 @@
 use std::error::Error;
 use tcp_client::methods::upload::upload;
-use tcp_server::http::put::put;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 
