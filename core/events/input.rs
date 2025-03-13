@@ -66,6 +66,9 @@ pub fn handle_n_key(
         home.current_screen = ScreenState::Sessions;
         return;
     }
+    if home.current_screen == ScreenState::Home {
+        home.current_screen = ScreenState::Sessions;
+    }
     if home.current_screen == ScreenState::Sessions || home.current_screen == ScreenState::Transfer
     {
         connection.visible = true;
@@ -209,12 +212,12 @@ pub fn handle_enter_key(
             connection.logs = true;
             connection.visible = false;
             host.visible = false;
-            home.current_screen = ScreenState::TcpServer;
+            home.current_screen = ScreenState::TcpClient;
         } else {
             connection.input_popup = true;
             connection.visible = false;
             host.visible = false;
-            home.current_screen = ScreenState::TcpClient;
+            home.current_screen = ScreenState::TcpServer;
         }
         return;
     }

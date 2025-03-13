@@ -1,8 +1,10 @@
 use super::state::{ScreenState, StateSnapshot};
 use crate::screens::{dashboard::table_ui, home::Home, session::draw_session_table_ui};
 use ratatui::DefaultTerminal;
+use ratatui::prelude::Widget;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 pub fn manage_state(
     home: &mut Home,
@@ -13,6 +15,9 @@ pub fn manage_state(
     let current_screen = home.current_screen.clone();
     let mut terminal = term.lock().unwrap();
     terminal.draw(|frame| match current_screen {
+        ScreenState::Home => {
+            home.render(frame.area(), frame.buffer_mut());
+        }
         ScreenState::Sessions => {
             let mut help = state_snapshot.help.lock().unwrap();
             let mut table = state_snapshot.table.lock().unwrap();

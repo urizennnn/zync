@@ -348,7 +348,7 @@ impl Home {
         let (tx, rx) = channel();
         let (ui_tx, ui_rx) = channel();
         Self {
-            current_screen: ScreenState::Sessions,
+            current_screen: ScreenState::Home,
             error: false,
             show_api_popup: false,
             show_api_dialog: tui_confirm_dialog::ConfirmDialogState::default(),
