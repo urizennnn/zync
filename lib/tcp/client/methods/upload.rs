@@ -9,7 +9,7 @@ pub async fn upload(
     path: &str,
     buffer: &mut [u8],
 ) -> Result<(), Box<dyn Error>> {
-    let mut file = File::open(path).await?;
+    let mut file = File::create(path).await?;
     info!("File opened: {}", path);
     let file_size = file.metadata().await?.len();
     stream

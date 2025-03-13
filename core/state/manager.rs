@@ -4,7 +4,6 @@ use ratatui::DefaultTerminal;
 use ratatui::prelude::Widget;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
-use std::thread;
 
 pub fn manage_state(
     home: &mut Home,

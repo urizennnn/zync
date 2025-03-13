@@ -2,9 +2,9 @@ use crate::init::GLOBAL_RUNTIME;
 use crate::screens::debug::DebugScreen;
 use crate::screens::host_type::HostType;
 use crate::state::state::StateSnapshot;
-use log::{error, info};
+use log::error;
 use rfd::FileDialog;
-use tcp_server::http::put::put;
+use tcp_client::methods::upload::upload;
 use tokio::io::AsyncWriteExt;
 
 pub fn open_explorer_and_file_select(state: &StateSnapshot, debug_screen: &mut DebugScreen) {
@@ -31,7 +31,7 @@ pub fn open_explorer_and_file_select(state: &StateSnapshot, debug_screen: &mut D
                     }
                 }
             });
-            let result = GLOBAL_RUNTIME.block_on(put(&mut stream, &mut buffer, &file_path));
+            let result = GLOBAL_RUNTIME.block_on(upload(&mut stream, &file_path, &mut buffer));
 
             match result {
                 Ok(_) => debug_screen.push_line("File uploaded successfully.".to_string()),

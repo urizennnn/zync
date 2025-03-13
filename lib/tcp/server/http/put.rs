@@ -15,30 +15,29 @@ pub async fn put(
     buffer: &mut [u8],
     command: &str,
 ) -> Result<(), Box<dyn Error>> {
-    println!("Processing PUT request");
     let parts: Vec<&str> = command.split_whitespace().collect();
 
     let file_name = parts[0];
     let full_path = format!("{}{}", STORAGE_PATH, file_name);
 
-
     if let Some(parent) = Path::new(&full_path).parent() {
         create_dir_all(parent).await?;
     }
 
-    File::create(&full_path).await?;
-    // let mut remaining = file_size;
-    //
-    // while remaining > 0 {
-    //     let to_read = std::cmp::min(buffer.len() as u64, remaining) as usize;
-    //     let bytes_read = stream.read(&mut buffer[..to_read]).await?;
-    //     if bytes_read == 0 {
-    //         warn!("Unexpected end of file");
-    //         return Err("Unexpected end of file".into());
-    //     }
-    //     file.write_all(&buffer[..bytes_read]).await?;
-    //     remaining -= bytes_read as u64;
-    // }
+    let mut file: File = File::create(&full_path).await?;
+    let file_size = file.metadata().await?.len();
+    let mut remaining = file_size;
+
+    while remaining > 0 {
+        let to_read = std::cmp::min(buffer.len() as u64, remaining) as usize;
+        let bytes_read = stream.read(&mut buffer[..to_read]).await?;
+        if bytes_read == 0 {
+            warn!("Unexpected end of file");
+            return Err("Unexpected end of file".into());
+        }
+        file.write_all(&buffer[..bytes_read]).await?;
+        remaining -= bytes_read as u64;
+    }
 
     info!("File upload completed");
     stream.write_all(b"File uploaded successfully\n").await?;
