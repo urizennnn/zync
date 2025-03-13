@@ -15,24 +15,35 @@ pub async fn put(
     buffer: &mut [u8],
     command: &str,
 ) -> Result<(), Box<dyn Error>> {
+    // Split the command into parts.
     let parts: Vec<&str> = command.split_whitespace().collect();
-    // Instead of panicking for debugging purposes, handle the empty command gracefully.
+    // Check for an empty command.
     if parts.is_empty() {
         stream.write_all(b"Invalid command: empty input\n").await?;
         return Err("Empty command in PUT".into());
     }
+    // Ensure the command contains at least a filename and file size.
+    if parts.len() < 2 {
+        stream
+            .write_all(b"Invalid command: missing file size\n")
+            .await?;
+        return Err("Missing file size in PUT command".into());
+    }
 
     let file_name = parts[0];
-    let full_path = format!("{}{}", STORAGE_PATH, file_name);
+    // Parse the file size from the command.
+    let file_size: u64 = parts[1].parse().map_err(|e| {
+        // Explicitly drop the future to satisfy Clippy.
+        std::mem::drop(stream.write_all(b"Invalid file size\n"));
+        format!("Invalid file size: {}", e)
+    })?;
 
+    let full_path = format!("{}{}", STORAGE_PATH, file_name);
     if let Some(parent) = Path::new(&full_path).parent() {
         create_dir_all(parent).await?;
     }
 
     let mut file: File = File::create(&full_path).await?;
-    // NOTE: Using file.metadata() here may return 0 for a newly created file.
-    // Typically, the file size should be parsed from the command rather than read from metadata.
-    let file_size = file.metadata().await?.len();
     let mut remaining = file_size;
 
     while remaining > 0 {
