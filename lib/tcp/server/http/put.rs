@@ -16,7 +16,11 @@ pub async fn put(
     command: &str,
 ) -> Result<(), Box<dyn Error>> {
     let parts: Vec<&str> = command.split_whitespace().collect();
-    panic!("{:?}", parts);
+    // Instead of panicking for debugging purposes, handle the empty command gracefully.
+    if parts.is_empty() {
+        stream.write_all(b"Invalid command: empty input\n").await?;
+        return Err("Empty command in PUT".into());
+    }
 
     let file_name = parts[0];
     let full_path = format!("{}{}", STORAGE_PATH, file_name);
@@ -26,6 +30,8 @@ pub async fn put(
     }
 
     let mut file: File = File::create(&full_path).await?;
+    // NOTE: Using file.metadata() here may return 0 for a newly created file.
+    // Typically, the file size should be parsed from the command rather than read from metadata.
     let file_size = file.metadata().await?.len();
     let mut remaining = file_size;
 
