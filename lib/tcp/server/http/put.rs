@@ -16,6 +16,7 @@ pub async fn put(
     command: &str,
 ) -> Result<(), Box<dyn Error>> {
     let parts: Vec<&str> = command.split_whitespace().collect();
+    panic!("{:?}", parts);
 
     let file_name = parts[0];
     let full_path = format!("{}{}", STORAGE_PATH, file_name);
