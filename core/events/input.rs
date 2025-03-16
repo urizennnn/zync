@@ -1,8 +1,8 @@
 use crate::core_mod::widgets::{Item, TableWidget};
 use crate::core_mod::{self, widgets};
 use crate::init::GLOBAL_RUNTIME;
-use crate::internal::forward_port::{forward_port_igd, get_local_ip};
-use crate::internal::{forward_port, session_store};
+use crate::internal::forward_port::{close_port_forwarding, forward_port_igd, get_local_ip};
+use crate::internal::session_store;
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
 use crate::screens::host_type::{HostType, HostTypePopup};
@@ -44,6 +44,7 @@ pub fn handle_q_key(home: &mut Home, input_box: &mut InputBox, connection: &mut 
     if home.current_screen == ScreenState::Transfer {
         home.current_screen = ScreenState::Sessions;
     } else {
+        close_port_forwarding(9002).unwrap_or(());
         home.running = false;
     }
 }
