@@ -22,15 +22,6 @@ pub fn open_explorer_and_file_select(state: &StateSnapshot, debug_screen: &mut D
             let mut stream = stream_arc.lock().unwrap();
             let mut buffer = vec![0u8; 209715200];
 
-            GLOBAL_RUNTIME.block_on(async {
-                match stream.write_all(file_path.as_bytes()).await {
-                    Ok(_) => {}
-                    Err(e) => {
-                        // Previously: println!("{:?}", e)
-                        error!("Error writing path to stream: {e}");
-                    }
-                }
-            });
             let result = GLOBAL_RUNTIME.block_on(upload(&mut stream, &file_path, &mut buffer));
 
             match result {

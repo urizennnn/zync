@@ -9,11 +9,10 @@ pub async fn upload(
     path: &str,
     buffer: &mut [u8],
 ) -> Result<(), Box<dyn Error>> {
-    let mut file = File::create(path).await?;
-    info!("File opened: {}", path);
+    let mut file = File::open(path).await?;
     let file_size = file.metadata().await?.len();
     stream
-        .write_all(format!("UPLOAD {} {}\n", path, file_size).as_bytes())
+        .write_all(format!("{} {}\n", path, file_size).as_bytes())
         .await?;
     stream.flush().await?;
 

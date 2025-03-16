@@ -10,37 +10,43 @@ use tokio::{
 
 #[deny(clippy::never_loop)]
 #[deny(clippy::ptr_arg)]
-pub async fn put(
-    stream: &mut TcpStream,
-    buffer: &mut [u8],
-    command: &str,
-) -> Result<(), Box<dyn Error>> {
-    let parts: Vec<&str> = command.split_whitespace().collect();
+pub async fn put(stream: &mut TcpStream, buffer: &mut [u8]) -> Result<(), Box<dyn Error>> {
+    let n = stream.read(buffer).await?;
+    panic!("{:?}", n);
+    if n == 0 {
+        return Err("No data received".into());
+    }
 
-    let file_name = parts[0];
-    let full_path = format!("{}{}", STORAGE_PATH, file_name);
+    let input_str = String::from_utf8_lossy(&buffer[..n]).trim().to_string();
+
+    let parts: Vec<&str> = input_str.split_whitespace().collect();
+    if parts.len() < 2 {
+        stream.write_all(b"Usage: PUT <filename>\n").await?;
+        return Err("Invalid PUT command (missing filename)".into());
+    }
+
+    let file_name = parts[1];
+    let full_path = format!("{:?}{:?}", STORAGE_PATH, file_name);
 
     if let Some(parent) = Path::new(&full_path).parent() {
         create_dir_all(parent).await?;
     }
 
-    let mut file: File = File::create(&full_path).await?;
-    let file_size = file.metadata().await?.len();
-    let mut remaining = file_size;
+    let mut file = File::create(&full_path).await?;
 
-    while remaining > 0 {
-        let to_read = std::cmp::min(buffer.len() as u64, remaining) as usize;
-        let bytes_read = stream.read(&mut buffer[..to_read]).await?;
-        if bytes_read == 0 {
-            warn!("Unexpected end of file");
-            return Err("Unexpected end of file".into());
+    let mut total_bytes_written = 0u64;
+    loop {
+        let n = stream.read(buffer).await?;
+        if n == 0 {
+            break; // done writing
         }
-        file.write_all(&buffer[..bytes_read]).await?;
-        remaining -= bytes_read as u64;
+        file.write_all(&buffer[..n]).await?;
+        total_bytes_written += n as u64;
     }
 
-    info!("File upload completed");
+    info!("Uploaded {} bytes to {:?}", total_bytes_written, full_path);
     stream.write_all(b"File uploaded successfully\n").await?;
     stream.flush().await?;
+
     Ok(())
 }

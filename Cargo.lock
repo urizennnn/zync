@@ -3207,6 +3207,7 @@ version = "0.0.0"
 dependencies = [
  "bytes",
  "cargo-watch",
+ "dirs 6.0.0",
  "igd",
  "log",
  "once_cell",

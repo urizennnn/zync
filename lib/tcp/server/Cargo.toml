@@ -17,6 +17,7 @@ serde.workspace = true
 tokio.workspace = true
 serde_json.workspace= true 
 once_cell.workspace = true
+dirs.workspace = true
 socket2.workspace = true
 igd = "0.12.1"
 
