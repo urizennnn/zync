@@ -1,59 +1,61 @@
-use crate::http::storage::STORAGE_PATH;
-use log::info;
+use bytes::{Buf, Bytes};
 use std::error::Error;
-use std::path::Path;
 use tokio::{
     fs::{File, create_dir_all},
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncWriteExt,
     net::TcpStream,
 };
+use tokio_stream::StreamExt;
+use tokio_util::codec::{FramedRead, LengthDelimitedCodec};
 
-#[deny(clippy::never_loop)]
-#[deny(clippy::ptr_arg)]
-pub async fn put(stream: &mut TcpStream, buffer: &mut [u8]) -> Result<(), Box<dyn Error>> {
-    let n = stream.read(buffer).await?;
-    if n == 0 {
-        return Err("No data received".into());
+use crate::http::storage::STORAGE_PATH;
+
+pub async fn put(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
+    // Wrap the stream in a length-delimited framed reader.
+    let mut framed = FramedRead::new(stream, LengthDelimitedCodec::new());
+
+    // Wait for a frame; if none is received, return an error.
+    let frame = framed.next().await.ok_or("No frame received")??;
+
+    // Split the frame into a filename and file bytes.
+    let (filename, filebytes) = split_payload(frame.into());
+
+    if filename.is_empty() {
+        return Err("Filename is empty".into());
     }
-    panic!("{:?}", n);
 
-    let input_str = String::from_utf8_lossy(&buffer[..n]).trim().to_string();
-    let parts: Vec<&str> = input_str.split_whitespace().collect();
-    if parts.len() < 2 {
-        stream.write_all(b"Usage: PUT <filename>\n").await?;
-        return Err("Invalid PUT command (missing filename)".into());
-    }
+    // Create the full path by joining STORAGE_PATH with the filename.
+    let full_path = STORAGE_PATH.join(&filename);
 
-    let file_name = parts[0];
-    let file_size = parts[1].parse::<u64>()?;
-
-    let full_path = format!("{:?}/{:?}", STORAGE_PATH, file_name);
-    if let Some(parent) = Path::new(&full_path).parent() {
+    // Ensure that the parent directory exists.
+    if let Some(parent) = full_path.parent() {
         create_dir_all(parent).await?;
+    } else {
+        return Err("Could not determine the parent directory for the file".into());
     }
 
+    // Create and write the file.
     let mut file = File::create(&full_path).await?;
-
-    let mut total_bytes_written = 0u64;
-
-    while total_bytes_written < file_size {
-        let remaining = file_size - total_bytes_written;
-        let to_read = std::cmp::min(remaining, buffer.len() as u64) as usize;
-
-        let n = stream.read(&mut buffer[..to_read]).await?;
-        if n == 0 {
-            break;
-        }
-
-        file.write_all(&buffer[..n]).await?;
-        total_bytes_written += n as u64;
-        info!("Progress: {}/{} bytes", total_bytes_written, file_size);
-    }
-
-    info!("Uploaded {} bytes to {}", total_bytes_written, full_path);
-
-    stream.write_all(b"File uploaded successfully\n").await?;
-    stream.flush().await?;
+    file.write_all(&filebytes).await?;
+    println!(
+        "Wrote {} bytes to '{}'",
+        filebytes.len(),
+        full_path.display()
+    );
 
     Ok(())
+}
+
+/// Splits a payload of the form `[filename, 0x00, file_data]` into its components.
+fn split_payload(mut frame: Bytes) -> (String, Bytes) {
+    if let Some(pos) = frame.iter().position(|&b| b == 0) {
+        let fname_bytes = frame.split_to(pos);
+        // Skip the delimiter.
+        frame.advance(1);
+        let filename = String::from_utf8_lossy(&fname_bytes).to_string();
+        (filename, frame)
+    } else {
+        let filename = String::from_utf8_lossy(&frame).to_string();
+        (filename, Bytes::new())
+    }
 }

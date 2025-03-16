@@ -321,15 +321,14 @@ impl Home {
         let stream_arc = Arc::clone(self.tcp_stream.as_ref().unwrap());
         GLOBAL_RUNTIME.spawn(async move {
             let buffer = vec![0u8; 5_242_880];
-            let result = tokio::task::spawn_blocking({
-                let stream_arc = Arc::clone(&stream_arc);
-                let mut buffer_clone = buffer.clone();
-                move || {
-                    let mut guard = stream_arc.lock().unwrap();
-                    GLOBAL_RUNTIME.block_on(handle_incoming_upload(&mut guard, &mut buffer_clone))
-                }
-            })
-            .await;
+            let result = tokio::spawn(async move {
+let stream_arc_clone = Arc::clone(&stream_arc);
+tokio::spawn(async move {
+    let mut guard = stream_arc_clone.lock().unwrap();
+    if let Err(e) = handle_incoming_upload(&mut guard).await {
+        eprintln!("Error uploading file: {}", e);
+    }
+});
 
             match result {
                 Ok(Ok(())) => {}

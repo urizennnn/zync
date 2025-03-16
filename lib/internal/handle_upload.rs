@@ -1,17 +1,13 @@
 use std::error::Error;
 use tcp_server::http::put::put;
-use tokio::io::AsyncReadExt;
-use tokio::net::TcpStream;
 
 pub async fn handle_incoming_upload(
     stream: &mut TcpStream,
-    buffer: &mut [u8],
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let n = stream.read(buffer).await?;
-    let command = String::from_utf8_lossy(&buffer[..n]).trim().to_string();
-    match put(stream, buffer).await {
+    match put(stream).await {
         Ok(_) => println!("File uploaded successfully"),
         Err(e) => eprintln!("Error uploading file: {}", e),
     }
     Ok(())
 }
+use tokio::net::TcpStream;

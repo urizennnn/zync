@@ -10,11 +10,15 @@ name = "tcp_server"
 path = "src/lib.rs"
 
 [dependencies]
-bytes = "1.6.1"
 cargo-watch = "8.5.2"
 log.workspace = true
 serde.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
+bytes.workspace = true
+
+tokio-stream.workspace = true
+futures-util.workspace = true
 serde_json.workspace= true 
 once_cell.workspace = true
 dirs.workspace = true

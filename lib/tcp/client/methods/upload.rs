@@ -1,34 +1,35 @@
-use log::info;
+use bytes::{BufMut, BytesMut};
+use futures_util::sink::SinkExt;
 use std::error::Error;
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
+use tokio::{fs, net::TcpStream};
+use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
 
-pub async fn upload(
-    stream: &mut TcpStream,
-    path: &str,
-    buffer: &mut [u8],
-) -> Result<(), Box<dyn Error>> {
-    let mut file = File::open(path).await?;
-    let file_size = file.metadata().await?.len();
-    stream
-        .write_all(format!("{} {}\n", path, file_size).as_bytes())
-        .await?;
-    stream.flush().await?;
-
-    let mut total_sent = 0;
-    loop {
-        let bytes_read = file.read(buffer).await?;
-        if bytes_read == 0 {
-            break;
-        }
-        stream.write_all(&buffer[..bytes_read]).await?;
-        stream.flush().await?;
-
-        total_sent += bytes_read;
-        info!("Progress: {}/{} bytes", total_sent, file_size);
+pub async fn upload(stream: &mut TcpStream, path: &str) -> Result<(), Box<dyn Error>> {
+    // Ensure the file path is not empty.
+    if path.trim().is_empty() {
+        return Err("Provided file path is empty".into());
     }
 
-    info!("Upload complete: {} bytes sent", total_sent);
+    // Read the file from disk.
+    let file_bytes = fs::read(path).await?;
+    if file_bytes.is_empty() {
+        return Err(format!("File '{}' is empty", path).into());
+    }
+
+    // Build the payload: [filename + delimiter (0) + file contents]
+    let mut payload = BytesMut::new();
+    payload.put(path.as_bytes());
+    payload.put_u8(0); // delimiter separating filename and file bytes
+    payload.put(file_bytes.as_slice());
+
+    // Wrap the stream in a length-delimited framed writer.
+    let mut framed = FramedWrite::new(stream, LengthDelimitedCodec::new());
+
+    // Send the entire payload as one frame.
+    framed.send(payload.freeze()).await?;
+
+    // Flush the stream to ensure all data is sent.
+    framed.flush().await?;
+
     Ok(())
 }
