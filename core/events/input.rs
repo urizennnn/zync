@@ -213,12 +213,12 @@ pub fn handle_enter_key(
             connection.logs = true;
             connection.visible = false;
             host.visible = false;
-            home.current_screen = ScreenState::TcpClient;
+            home.current_screen = ScreenState::TcpServer;
         } else {
             connection.input_popup = true;
             connection.visible = false;
             host.visible = false;
-            home.current_screen = ScreenState::TcpServer;
+            home.current_screen = ScreenState::TcpClient;
         }
         return;
     }
