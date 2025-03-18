@@ -2,7 +2,6 @@ use igd::{PortMappingProtocol, search_gateway};
 use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-
 pub fn forward_port_igd(addr: &String) -> Result<(), Box<dyn Error>> {
     let port_str = addr.split(':').last().ok_or("No port specified in addr")?;
     let port: u16 = port_str.parse()?;
@@ -32,4 +31,10 @@ pub fn get_local_ip() -> Result<String, Box<dyn Error>> {
     s.connect("8.8.8.8:80")?;
     let local_addr = s.local_addr()?;
     Ok(local_addr.ip().to_string())
+}
+
+pub fn close_port_forwarding(port: u16) -> Result<(), Box<dyn Error>> {
+    let gateway = search_gateway(Default::default())?;
+    gateway.remove_port(PortMappingProtocol::TCP, port)?;
+    Ok(())
 }
