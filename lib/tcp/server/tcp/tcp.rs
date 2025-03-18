@@ -1,7 +1,7 @@
 use super::allowed_request::AllowedRequest;
 use crate::http::get::get_file;
 use crate::http::methods::list;
-use crate::http::put::put;
+use crate::http::put::router;
 use crate::threadpool::thread::Threadpool;
 use log::{error, info, warn};
 use std::error::Error;
@@ -15,13 +15,14 @@ impl TCP {
     pub fn accept_connection_sync(
         addr: &str,
         global_rt: &tokio::runtime::Runtime,
-    ) -> Result<(TcpStream, std::net::SocketAddr), Box<dyn Error>> {
-        global_rt.block_on(async {
-            let listener = TcpListener::bind(addr).await?;
-            let (socket, client_addr) = listener.accept().await?;
-            Ok((socket, client_addr))
-        })
+    ) -> Result<(), Box<dyn Error>> {
+        let socket_addr: std::net::SocketAddr = addr.parse()?;
+        global_rt.spawn(async move {
+            warp::serve(router()).run(socket_addr).await;
+        });
+        Ok(())
     }
+
     pub async fn run(addr: &str) -> Result<(), Box<dyn Error>> {
         let listener = TcpListener::bind(addr).await?;
         info!("Server listening on {}", addr);
@@ -62,16 +63,15 @@ impl TCP {
             info!("Received request: {}", request);
 
             match AllowedRequest::from_str_slice(&request) {
-                // Some(AllowedRequest::Put) => {
-                //     put(&mut stream, &mut buffer).await?;
-                // }
                 Some(AllowedRequest::List) => {
                     list::list_storage(&mut stream).await?;
                 }
                 Some(AllowedRequest::Delete) => {
                     println!("Processing DELETE request");
                 }
-                Some(AllowedRequest::Get) => get_file(&mut stream, &mut buffer).await?,
+                Some(AllowedRequest::Get) => {
+                    get_file(&mut stream, &mut buffer).await?;
+                }
                 None => {}
                 _ => {}
             }

@@ -2,14 +2,12 @@ use super::debug::DebugScreen;
 use super::host_type::HostTypePopup;
 use super::session::{Connection, Device, Transfer};
 use crate::core_mod::widgets::{Item, TableWidget};
-use crate::core_mod::{self};
 use crate::events::input::{
     handle_backspace_key, handle_char_key, handle_d_key, handle_enter_key, handle_esc_key,
     handle_help_key, handle_left_key, handle_n_key, handle_o_key, handle_q_key, handle_right_key,
 };
 use crate::events::ui_update::UIUpdate;
 use crate::init::GLOBAL_RUNTIME;
-use crate::internal::handle_upload::handle_incoming_upload;
 use crate::internal::session_store::load_sessions;
 use crate::screens::{
     error::error_widget::ErrorWidget, popup::InputBox, protocol_popup::ConnectionPopup,
@@ -56,6 +54,7 @@ pub struct Home {
     pub ui_update_rx: Receiver<UIUpdate>,
     pub popup_message: Option<String>,
     pub current_screen: ScreenState,
+    // Changed tcp_stream from bool to Option<Arc<Mutex<TcpStream>>>
     pub tcp_stream: Option<Arc<Mutex<tokio::net::TcpStream>>>,
 }
 
@@ -161,7 +160,7 @@ impl Home {
         let connection = Arc::new(Mutex::new(
             crate::screens::protocol_popup::ConnectionPopup::new(),
         ));
-        let mut api_popup = crate::screens::popup::ApiPopup::new();
+        let _api_popup = crate::screens::popup::ApiPopup::new();
         let error = Arc::new(Mutex::new(ErrorWidget::new()));
         let host = Arc::new(Mutex::new(HostTypePopup::new()));
         let debug_screen = Arc::new(Mutex::new(DebugScreen::new()));
@@ -208,7 +207,7 @@ impl Home {
                 host: host.clone(),
                 progress: progress.clone(),
                 debug_screen: debug_screen.clone(),
-                stream: self.tcp_stream.clone(),
+                stream: self.tcp_stream.is_some(),
             });
 
             let mut deps = HomeDeps {
@@ -223,30 +222,7 @@ impl Home {
             };
 
             crate::state::manager::manage_state(self, state_snapshot.clone(), term.clone())?;
-            // match core_mod::core::check_config() {
-            //     Ok(_) => {
-            //     }
-            //     Err(_) => {
-            //         let input_box_guard = input_box.lock().unwrap();
-            //         let error_guard = error.lock().unwrap();
-            //         term.lock().unwrap().draw(|f| {
-            //             let area = f.area();
-            //             self.render(area, f.buffer_mut());
-            //             if self.show_popup {
-            //                 self.render_notification(f);
-            //             }
-            //             if self.show_api_popup {
-            //                 api_popup.draw(f, &input_box_guard);
-            //             }
-            //             if self.render_url_popup {
-            //                 api_popup.render_url(f);
-            //             }
-            //             if self.error {
-            //                 error_guard.render_centered_popup(f);
-            //             }
-            //         })?;
-            //     }
-            // }
+            // (Optional) additional code here...
 
             if let Ok(event) = event_rx.recv_timeout(Duration::from_millis(100)) {
                 self.handle_event(event, &mut deps)?;
@@ -306,43 +282,41 @@ impl Home {
         let commands = Paragraph::new(commands_text).alignment(ratatui::layout::Alignment::Right);
         commands.render(command_layout[1], buf);
     }
-    pub fn spawn_upload_handler_if_needed(&mut self) {
-        static UPLOAD_TASK_SPAWNED: once_cell::sync::OnceCell<bool> =
-            once_cell::sync::OnceCell::new();
 
-        if self.tcp_stream.is_none() {
-            return;
-        }
-        if UPLOAD_TASK_SPAWNED.get().is_some() {
-            return;
-        }
-        UPLOAD_TASK_SPAWNED.set(true).ok();
-
-        let stream_arc = Arc::clone(self.tcp_stream.as_ref().unwrap());
-        GLOBAL_RUNTIME.spawn(async move {
-            let buffer = vec![0u8; 5_242_880];
-            let result = tokio::task::spawn_blocking({
-                let stream_arc = Arc::clone(&stream_arc);
-                let mut buffer_clone = buffer.clone();
-                move || {
-                    let mut guard = stream_arc.lock().unwrap();
-                    GLOBAL_RUNTIME.block_on(handle_incoming_upload(&mut guard, &mut buffer_clone))
-                }
-            })
-            .await;
-
-            match result {
-                Ok(Ok(())) => {}
-                Ok(Err(_e)) => {
-                    // Removed the eprintln! calls here
-                }
-                Err(_e) => {
-                    // Removed the eprintln! call here
-                }
-            }
-            tokio::task::yield_now().await;
-        });
-    }
+    // pub fn spawn_upload_handler_if_needed(&mut self) {
+    //     static UPLOAD_TASK_SPAWNED: once_cell::sync::OnceCell<bool> =
+    //         once_cell::sync::OnceCell::new();
+    //
+    //     // Now tcp_stream is an Option, so we check if it's None.
+    //     if self.tcp_stream.is_none() {
+    //         return;
+    //     }
+    //     if UPLOAD_TASK_SPAWNED.get().is_some() {
+    //         return;
+    //     }
+    //     UPLOAD_TASK_SPAWNED.set(true).ok();
+    //
+    //     // Clone the Arc<Mutex<TcpStream>> from the Option.
+    //     let stream_arc = Arc::clone(self.tcp_stream.as_ref().unwrap());
+    //     GLOBAL_RUNTIME.spawn(async move {
+    //         let result = tokio::task::spawn_blocking(move || {
+    //             let mut guard = stream_arc.lock().unwrap();
+    //             GLOBAL_RUNTIME.block_on(handle_incoming_upload(&mut guard))
+    //         })
+    //         .await;
+    //
+    //         match result {
+    //             Ok(Ok(())) => {}
+    //             Ok(Err(_e)) => {
+    //                 // Handle error if needed.
+    //             }
+    //             Err(_e) => {
+    //                 // Handle error if needed.
+    //             }
+    //         }
+    //         tokio::task::yield_now().await;
+    //     });
+    // }
 
     pub fn new() -> Self {
         let (tx, rx) = channel();
@@ -362,6 +336,7 @@ impl Home {
             ui_update_tx: ui_tx,
             ui_update_rx: ui_rx,
             popup_message: None,
+            // Initialize tcp_stream as None (it can be set later as needed)
             tcp_stream: None,
         }
     }

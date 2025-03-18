@@ -1,64 +1,71 @@
-use crate::http::storage::STORAGE_PATH;
-use log::{info, warn};
-use std::error::Error;
+use bytes::Bytes;
+use std::convert::Infallible;
 use std::path::Path;
-use tokio::{
-    fs::{File, create_dir_all},
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-};
+use tokio::fs;
+use tokio::fs::create_dir_all;
+use warp::Filter;
+use warp::Reply;
+use warp::cors;
+use warp::http::Response;
+use warp::hyper::Body;
 
-#[deny(clippy::never_loop)]
-#[deny(clippy::ptr_arg)]
-pub async fn put(
-    stream: &mut TcpStream,
-    buffer: &mut [u8],
-    command: &str,
-) -> Result<(), Box<dyn Error>> {
-    // Split the command into parts.
-    let parts: Vec<&str> = command.split_whitespace().collect();
-    // Check for an empty command.
-    if parts.is_empty() {
-        stream.write_all(b"Invalid command: empty input\n").await?;
-        return Err("Empty command in PUT".into());
-    }
-    // Ensure the command contains at least a filename and file size.
-    if parts.len() < 2 {
-        stream
-            .write_all(b"Invalid command: missing file size\n")
-            .await?;
-        return Err("Missing file size in PUT command".into());
+use super::storage::STORAGE_PATH;
+
+#[derive(Debug, serde::Deserialize)]
+pub struct FileQuery {
+    pub path: String,
+}
+
+pub async fn put(query: FileQuery, body: Bytes) -> Result<impl Reply, Infallible> {
+    if query.path.trim().is_empty() {
+        return Ok(Response::builder()
+            .status(400)
+            .body(Body::from("Provided file path is empty".to_string()))
+            .unwrap());
     }
 
-    let file_name = parts[0];
-    // Parse the file size from the command.
-    let file_size: u64 = parts[1].parse().map_err(|e| {
-        // Explicitly drop the future to satisfy Clippy.
-        std::mem::drop(stream.write_all(b"Invalid file size\n"));
-        format!("Invalid file size: {}", e)
-    })?;
-
-    let full_path = format!("{}{}", STORAGE_PATH, file_name);
-    if let Some(parent) = Path::new(&full_path).parent() {
-        create_dir_all(parent).await?;
+    let dest_dir = &*STORAGE_PATH;
+    if let Err(e) = create_dir_all(&dest_dir).await {
+        return Ok(Response::builder()
+            .status(500)
+            .body(Body::from(format!(
+                "Failed to create destination directory: {}",
+                e
+            )))
+            .unwrap());
     }
 
-    let mut file: File = File::create(&full_path).await?;
-    let mut remaining = file_size;
+    let filename = Path::new(&query.path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("file");
 
-    while remaining > 0 {
-        let to_read = std::cmp::min(buffer.len() as u64, remaining) as usize;
-        let bytes_read = stream.read(&mut buffer[..to_read]).await?;
-        if bytes_read == 0 {
-            warn!("Unexpected end of file");
-            return Err("Unexpected end of file".into());
+    let dest_path = dest_dir.join(filename);
+
+    match fs::write(&dest_path, &body).await {
+        Ok(_) => {
+            let msg = format!("File saved successfully to {:?}", dest_path);
+            Ok(Response::builder()
+                .status(200)
+                .body(Body::from(msg))
+                .unwrap())
         }
-        file.write_all(&buffer[..bytes_read]).await?;
-        remaining -= bytes_read as u64;
+        Err(e) => Ok(Response::builder()
+            .status(500)
+            .body(Body::from(format!("Failed to save file: {}", e)))
+            .unwrap()),
     }
+}
+pub fn router() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    let cors = cors()
+        .allow_origin("https://your-allowed-origin.com")
+        .allow_methods(vec!["POST"])
+        .allow_headers(vec!["content-type"]);
 
-    info!("File upload completed");
-    stream.write_all(b"File uploaded successfully\n").await?;
-    stream.flush().await?;
-    Ok(())
+    warp::path("upload")
+        .and(warp::post())
+        .and(warp::query::<FileQuery>())
+        .and(warp::body::bytes())
+        .and_then(put)
+        .with(cors)
 }

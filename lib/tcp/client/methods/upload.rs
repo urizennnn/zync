@@ -1,35 +1,31 @@
-use log::info;
+use reqwest::Client;
 use std::error::Error;
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
+use std::path::Path;
+use tokio::fs;
 
-pub async fn upload(
-    stream: &mut TcpStream,
-    path: &str,
-    buffer: &mut [u8],
-) -> Result<(), Box<dyn Error>> {
-    let mut file = File::create(path).await?;
-    info!("File opened: {}", path);
-    let file_size = file.metadata().await?.len();
-    stream
-        .write_all(format!("UPLOAD {} {}\n", path, file_size).as_bytes())
-        .await?;
-    stream.flush().await?;
-
-    let mut total_sent = 0;
-    loop {
-        let bytes_read = file.read(buffer).await?;
-        if bytes_read == 0 {
-            break;
-        }
-        stream.write_all(&buffer[..bytes_read]).await?;
-        stream.flush().await?;
-
-        total_sent += bytes_read;
-        info!("Progress: {}/{} bytes", total_sent, file_size);
+pub async fn upload(file_path: &str, url: &str) -> Result<(), Box<dyn Error>> {
+    if file_path.trim().is_empty() {
+        return Err("Provided file path is empty".into());
     }
 
-    info!("Upload complete: {} bytes sent", total_sent);
+    let file_bytes = fs::read(file_path).await?;
+    if file_bytes.is_empty() {
+        return Err(format!("File '{}' is empty", file_path).into());
+    }
+
+    let filename = Path::new(file_path)
+        .file_name()
+        .and_then(|os_str| os_str.to_str())
+        .unwrap_or(file_path);
+
+    let request_url = reqwest::Url::parse_with_params(url, &[("path", filename)])?;
+
+    let client = Client::new();
+    let response = client.post(request_url).body(file_bytes).send().await?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP request failed with status: {}", response.status()).into());
+    }
+
     Ok(())
 }

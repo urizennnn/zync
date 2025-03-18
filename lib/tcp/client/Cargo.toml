@@ -18,7 +18,12 @@ whoami.workspace = true
 once_cell.workspace = true
 serde_json.workspace = true
 dirs.workspace = true
-reqwest.workspace = true
+reqwest = { workspace = true, features = ["multipart"] }
+tokio-util.workspace = true
+bytes.workspace = true
+tokio-stream.workspace = true
+futures-util.workspace = true
 chrono = "0.4.39"
 simple_logger = "5.0.0"
 igd = "0.12.1"
+warp = "0.3.7"

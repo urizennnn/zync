@@ -36,5 +36,5 @@ pub struct StateSnapshot {
     pub host: Arc<Mutex<HostTypePopup>>,
     pub progress: Arc<Mutex<ConnectionProgress>>,
     pub debug_screen: Arc<Mutex<DebugScreen>>,
-    pub stream: Option<Arc<Mutex<tokio::net::TcpStream>>>,
+    pub stream: bool,
 }
