@@ -5,6 +5,7 @@ use tokio::fs;
 use tokio::fs::create_dir_all;
 use warp::Filter;
 use warp::Reply;
+use warp::cors;
 use warp::http::Response;
 use warp::hyper::Body;
 
@@ -55,11 +56,16 @@ pub async fn put(query: FileQuery, body: Bytes) -> Result<impl Reply, Infallible
             .unwrap()),
     }
 }
+pub fn router() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    let cors = cors()
+        .allow_origin("https://your-allowed-origin.com")
+        .allow_methods(vec!["POST"])
+        .allow_headers(vec!["content-type"]);
 
-pub fn router() -> impl Filter<Extract = impl Reply, Error = warp::Rejection> + Clone {
     warp::path("upload")
         .and(warp::post())
         .and(warp::query::<FileQuery>())
         .and(warp::body::bytes())
         .and_then(put)
+        .with(cors)
 }

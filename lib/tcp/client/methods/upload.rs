@@ -24,7 +24,6 @@ pub async fn upload(file_path: &str, url: &str) -> Result<(), Box<dyn Error>> {
     let response = client.post(request_url).body(file_bytes).send().await?;
 
     if !response.status().is_success() {
-        panic!("failed {:?}", response.error_for_status());
         return Err(format!("HTTP request failed with status: {}", response.status()).into());
     }
 
