@@ -10,7 +10,6 @@ pub fn manage_state(
     state_snapshot: Arc<StateSnapshot>,
     term: Arc<Mutex<DefaultTerminal>>,
 ) -> Result<(), Box<dyn Error>> {
-    home.spawn_upload_handler_if_needed();
     let current_screen = home.current_screen.clone();
     let mut terminal = term.lock().unwrap();
     terminal.draw(|frame| match current_screen {

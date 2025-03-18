@@ -1,7 +1,7 @@
 use iroh::{Endpoint, protocol::Router};
 use iroh_blobs::net_protocol::Blobs;
 
-async fn p2p_listener() {
+pub async fn p2p_listener(file: &str) -> anyhow::Result<()> {
     let endpoint = Endpoint::builder().discovery_n0().bind().await.unwrap();
 
     let blobs = Blobs::memory().build(&endpoint);
@@ -9,6 +9,8 @@ async fn p2p_listener() {
         .accept(iroh_blobs::ALPN, blobs.clone())
         .spawn()
         .await?;
-    router.shutdown().await;
+
+    let client = blobs.client();
+    router.shutdown().await?;
     Ok(())
 }

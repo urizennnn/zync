@@ -1,35 +1,32 @@
-use bytes::{BufMut, BytesMut};
-use futures_util::sink::SinkExt;
+use reqwest::Client;
 use std::error::Error;
-use tokio::{fs, net::TcpStream};
-use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
+use std::path::Path;
+use tokio::fs;
 
-pub async fn upload(stream: &mut TcpStream, path: &str) -> Result<(), Box<dyn Error>> {
-    // Ensure the file path is not empty.
-    if path.trim().is_empty() {
+pub async fn upload(file_path: &str, url: &str) -> Result<(), Box<dyn Error>> {
+    if file_path.trim().is_empty() {
         return Err("Provided file path is empty".into());
     }
 
-    // Read the file from disk.
-    let file_bytes = fs::read(path).await?;
+    let file_bytes = fs::read(file_path).await?;
     if file_bytes.is_empty() {
-        return Err(format!("File '{}' is empty", path).into());
+        return Err(format!("File '{}' is empty", file_path).into());
     }
 
-    // Build the payload: [filename + delimiter (0) + file contents]
-    let mut payload = BytesMut::new();
-    payload.put(path.as_bytes());
-    payload.put_u8(0); // delimiter separating filename and file bytes
-    payload.put(file_bytes.as_slice());
+    let filename = Path::new(file_path)
+        .file_name()
+        .and_then(|os_str| os_str.to_str())
+        .unwrap_or(file_path);
 
-    // Wrap the stream in a length-delimited framed writer.
-    let mut framed = FramedWrite::new(stream, LengthDelimitedCodec::new());
+    let request_url = reqwest::Url::parse_with_params(url, &[("path", filename)])?;
 
-    // Send the entire payload as one frame.
-    framed.send(payload.freeze()).await?;
+    let client = Client::new();
+    let response = client.post(request_url).body(file_bytes).send().await?;
 
-    // Flush the stream to ensure all data is sent.
-    framed.flush().await?;
+    if !response.status().is_success() {
+        panic!("failed {:?}", response.error_for_status());
+        return Err(format!("HTTP request failed with status: {}", response.status()).into());
+    }
 
     Ok(())
 }

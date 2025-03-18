@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.97"
 iroh = "0.33.0"
-iroh-blobs = "0.33.1"
+iroh-blobs = { version = "0.33.1", features = ["rpc"] }

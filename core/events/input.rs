@@ -2,7 +2,7 @@ use crate::core_mod::widgets::{Item, TableWidget};
 use crate::core_mod::{self, widgets};
 use crate::init::GLOBAL_RUNTIME;
 use crate::internal::forward_port::{forward_port_igd, get_local_ip};
-use crate::internal::{forward_port, session_store};
+use crate::internal::session_store;
 use crate::screens::debug::DebugScreen;
 use crate::screens::home::Home;
 use crate::screens::host_type::{HostType, HostTypePopup};
@@ -240,11 +240,8 @@ pub fn handle_enter_key(
                 }
                 let progress_clone = progress.clone();
                 let addr = &format!("0.0.0.0:{}", port);
-                if let Err(e) = forward_port_igd(addr) {
-                    log::warn!("UPnP port-forwarding failed: {}", e);
-                }
                 match TCP::accept_connection_sync(addr, &GLOBAL_RUNTIME) {
-                    Ok((socket, _addr)) => {
+                    Ok(()) => {
                         let mut prog = progress_clone.lock().unwrap();
                         prog.state = ConnectionState::Connected;
                         let hostname = whoami::username();
@@ -257,7 +254,7 @@ pub fn handle_enter_key(
                             last_connection: now.clone(),
                         };
                         session_store::update_session_record(new_record);
-                        home.tcp_stream = Some(Arc::new(Mutex::new(socket)));
+                        // Do not assign a TcpStream here because the Warp server does not yield one.
                     }
                     Err(e) => {
                         let mut prog = progress_clone.lock().unwrap();
@@ -366,7 +363,7 @@ pub fn handle_enter_key(
             };
             let mut found = false;
             for item in table.items.iter_mut() {
-                let Item::Device(d): &mut Item = item else {
+                let Item::Device(d) = item else {
                     continue;
                 };
                 if d.name == hostname {
