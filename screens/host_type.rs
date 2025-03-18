@@ -5,7 +5,8 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Tabs},
 };
-use strum::{Display, EnumIter, FromRepr, IntoEnumIterator};
+use strum::IntoEnumIterator;
+use strum_macros::{Display, EnumIter, FromRepr};
 
 use crate::utils::calculate::centered_rect;
 

@@ -1,8 +1,9 @@
+use rand::distr::Alphanumeric;
 use std::any::type_name;
 use std::{collections::BTreeMap, error::Error, fs};
 
 use nanoid::nanoid;
-use rand::{Rng, distributions::Alphanumeric, thread_rng};
+use rand::{Rng, rng};
 
 use crate::config::app::app_config_variables::{App, Files};
 
@@ -64,7 +65,7 @@ pub fn create_config(key: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 fn create_secret(len: usize) -> String {
-    let client_secret = thread_rng();
+    let client_secret = rng();
     client_secret
         .sample_iter(&Alphanumeric)
         .take(len)

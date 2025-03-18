@@ -6,7 +6,7 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Tabs};
 use strum::IntoEnumIterator;
-use strum::{Display, EnumIter, FromRepr};
+use strum_macros::{Display, EnumIter, FromRepr};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConnectionInputMode {

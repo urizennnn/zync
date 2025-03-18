@@ -19,7 +19,7 @@ pub fn open_explorer_and_file_select(state: &StateSnapshot, debug_screen: &mut D
         match state.stream {
             true => {
                 let result =
-                    GLOBAL_RUNTIME.block_on(upload(&file_path, "http://localhost:9002/upload"));
+                    GLOBAL_RUNTIME.block_on(upload(&file_path, "http:///192.168.0.14:9002/upload"));
                 match result {
                     Ok(_) => debug_screen.push_line("File uploaded successfully.".to_string()),
                     Err(e) => debug_screen.push_line(format!("Error uploading file: {}", e)),
