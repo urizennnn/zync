@@ -11,6 +11,10 @@ pub fn connect_sync(address: &str) -> Result<TcpStream, Box<dyn Error>> {
         Ok(stream)
     })
 }
+/// Asynchronously binds a TCP listener to port 4239 on all network interfaces.
+///
+/// # Returns
+/// A `TcpListener` bound to "0.0.0.0:4239" on success, or a boxed error if binding fails.
 pub async fn listen() -> Result<TcpListener, Box<dyn std::error::Error + Send>> {
     match TcpListener::bind("0.0.0.0:4239").await {
         Ok(listener) => Ok(listener),
