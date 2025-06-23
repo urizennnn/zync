@@ -15,7 +15,7 @@ pub async fn listen() -> Result<TcpListener, Box<dyn std::error::Error + Send>> 
     match TcpListener::bind("0.0.0.0:4239").await {
         Ok(listener) => Ok(listener),
         Err(e) => {
-            eprintln!("Failed to bind: {}", e);
+            log::error!("Failed to bind: {}", e);
             Err(Box::new(e))
         }
     }

@@ -1,4 +1,4 @@
-use igd::{PortMappingProtocol, search_gateway};
+use igd::{search_gateway, PortMappingProtocol};
 use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddrV4};
 
@@ -22,7 +22,7 @@ pub fn forward_port_igd(addr: &String) -> Result<(), Box<dyn Error>> {
         "Zync",
     )?;
 
-    println!("Port {} forwarded via UPnP to LAN IP {}.", port, local_ip);
+    log::info!("Port {} forwarded via UPnP to LAN IP {}.", port, local_ip);
     Ok(())
 }
 pub fn get_local_ip() -> Result<String, Box<dyn Error>> {

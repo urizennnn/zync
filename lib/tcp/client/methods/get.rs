@@ -9,7 +9,6 @@ pub async fn receive_files(
     parts: &[&str],
     destination: &[&str],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("{parts:?}");
     let source = destination[1];
     let destination = PathBuf::from(destination[2]);
     let final_path = destination.join(source);

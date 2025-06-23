@@ -9,7 +9,7 @@ pub async fn upload(
     buffer: &mut [u8],
 ) -> Result<(), Box<dyn Error>> {
     let mut file = File::open(path).await?;
-    println!("File opened: {}", path);
+    log::info!("File opened: {}", path);
 
     let file_size = file.metadata().await?.len();
     stream
@@ -27,9 +27,9 @@ pub async fn upload(
         stream.flush().await?;
 
         total_sent += bytes_read;
-        println!("Progress: {}/{} bytes", total_sent, file_size);
+        log::info!("Progress: {}/{} bytes", total_sent, file_size);
     }
 
-    println!("Upload complete: {} bytes sent", total_sent);
+    log::info!("Upload complete: {} bytes sent", total_sent);
     Ok(())
 }

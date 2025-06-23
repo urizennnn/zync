@@ -9,6 +9,8 @@ use std::process::exit;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
+const BUFFER_SIZE: usize = 8 * 1024; // 8KB
+
 pub struct TCP;
 
 impl TCP {
@@ -49,7 +51,7 @@ impl TCP {
     }
 
     async fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
-        let mut buffer = vec![0; 5_242_880];
+        let mut buffer = vec![0u8; BUFFER_SIZE];
         loop {
             let n = stream.read(&mut buffer).await?;
             if n == 0 {
@@ -67,12 +69,12 @@ impl TCP {
                     list::list_storage(&mut stream).await?;
                 }
                 Some(AllowedRequest::Delete) => {
-                    println!("Processing DELETE request");
+                    info!("Processing DELETE request");
                 }
                 Some(AllowedRequest::Get) => {
                     get_file(&mut stream, &mut buffer).await?;
                 }
-                None => {}
+                None => warn!("Unknown request: {request}"),
                 _ => {}
             }
 

@@ -17,7 +17,7 @@ pub async fn list_storage(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> 
     let json = json!(file_names); // Serialize the vector to a JSON array
     let json_str = json.to_string(); // Convert the JSON array to a string
 
-    println!("{json_str}");
+    log::info!("{json_str}");
     stream.write_all(json_str.as_bytes()).await?; // Send the JSON string over the stream
     stream.write_all(b"\n").await?; // Add a newline to indicate the end of the message
     stream.flush().await?; // Flush the stream to ensure all data is sent

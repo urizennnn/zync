@@ -24,8 +24,7 @@ pub async fn get_file(stream: &mut TcpStream, buffer: &mut [u8]) -> Result<(), B
     let path = Path::new(&format_path);
     let mut file = File::open(&path).await?;
     let file_size = file.metadata().await?.len();
-    let response = format!("Details:{format_path:?} {:?}", file_size);
-    println!("{response}");
+    log::info!("Sending {format_path:?} ({} bytes)", file_size);
     stream
         .write_all(format!("SEND {} {}\n", format_path, file_size).as_bytes())
         .await?;
