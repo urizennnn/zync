@@ -31,6 +31,9 @@ pub async fn upload(
     stream.flush().await?;
 
     let mut total_sent = 0;
+    let mut last_progress_log = 0;
+    let log_interval = file_size / 100; // Log every 1% progress
+
     loop {
         let bytes_read = file.read(buffer).await?;
         if bytes_read == 0 {
@@ -40,23 +43,15 @@ pub async fn upload(
         stream.flush().await?;
 
         total_sent += bytes_read;
-        // Throttle progress logs to ~1% increments
-        let mut last_progress_log = 0;
-        let log_interval = file_size / 100; // Log every 1% progress
-
-        loop {
-            // ... existing code ...
-            total_sent += bytes_read;
--        log::info!("Progress: {}/{} bytes", total_sent, file_size);
-+        if total_sent - last_progress_log >= log_interval || total_sent == file_size {
-+            log::info!(
-+                "Progress: {}/{} bytes ({:.1}%)",
-+                total_sent,
-+                file_size,
-+                (total_sent as f64 / file_size as f64) * 100.0
-+            );
-+            last_progress_log = total_sent;
-+        }
+        log::info!("Progress: {}/{} bytes", total_sent, file_size);
+        if total_sent - last_progress_log >= log_interval || total_sent == file_size {
+            log::info!(
+                "Progress: {}/{} bytes ({:.1}%)",
+                total_sent,
+                file_size,
+                (total_sent as f64 / file_size as f64) * 100.0
+            );
+            last_progress_log = total_sent;
         }
     }
 
