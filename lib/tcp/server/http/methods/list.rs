@@ -2,6 +2,14 @@ use serde_json::json;
 use std::{error::Error, fs};
 use tokio::{io::AsyncWriteExt, net::TcpStream};
 
+/// Lists the names of files in the "storage" directory and sends them as a JSON array over the provided TCP stream.
+///
+/// The function writes a status message to the stream, collects all file names from the "storage" directory,
+/// serializes them into a JSON array, and transmits the result to the client. The stream is flushed to ensure
+/// all data is sent.
+///
+/// # Errors
+/// Returns an error if reading the directory, serializing the file names, or writing to the stream fails.
 pub async fn list_storage(stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
     stream.write_all(b"Listing storage items...\n").await?;
 

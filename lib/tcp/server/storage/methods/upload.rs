@@ -3,6 +3,19 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
+/// Asynchronously uploads a file's contents over a TCP stream in chunks.
+///
+/// Opens the specified file, sends an upload initiation message with the file path and size,
+/// then transmits the file data in buffered chunks over the provided TCP stream. Progress is logged
+/// after each chunk, and the function completes when the entire file has been sent.
+///
+/// # Parameters
+/// - `stream`: The TCP stream to which the file will be uploaded.
+/// - `path`: The path to the file to upload.
+/// - `buffer`: A mutable byte buffer used for reading file chunks.
+///
+/// # Returns
+/// Returns `Ok(())` if the upload completes successfully, or an error if any I/O operation fails.
 pub async fn upload(
     stream: &mut TcpStream,
     path: &str,

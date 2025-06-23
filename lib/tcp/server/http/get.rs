@@ -7,6 +7,12 @@ use tokio::{
     net::TcpStream,
 };
 
+/// Handles a file transfer request over a TCP stream by sending the specified file's contents to the client.
+///
+/// Expects a command in the buffer with exactly three whitespace-separated parts, where the second part is the file path relative to the "storage/" directory. If the command is invalid, sends an error message to the client and returns an error. On success, sends a "SEND" header with the file path and size, then streams the file contents in chunks over the TCP connection.
+///
+/// # Errors
+/// Returns an error if the command format is invalid, the file cannot be opened, or any I/O operation fails during the transfer.
 pub async fn get_file(stream: &mut TcpStream, buffer: &mut [u8]) -> Result<(), Box<dyn Error>> {
     info!("Getting file..");
     let buf_string = String::from_utf8_lossy(buffer)

@@ -3,6 +3,17 @@ use tokio::{fs::File, io::AsyncReadExt, io::AsyncWriteExt, net::TcpStream};
 
 #[deny(clippy::never_loop)]
 #[deny(clippy::ptr_arg)]
+/// Receives a file over a TCP stream and saves it to the specified destination path asynchronously.
+///
+/// The function reads the file size and destination information from the provided slices, ensures the destination directory exists, and writes the received file data to disk.
+///
+/// # Parameters
+/// - `buffer`: Temporary buffer used for reading data from the stream.
+/// - `parts`: Slice containing protocol-specific metadata, where `parts[2]` is expected to be the file size as a string.
+/// - `destination`: Slice containing destination information, where `destination[1]` is the filename and `destination[2]` is the directory path.
+///
+/// # Returns
+/// Returns `Ok(())` if the file is received and saved successfully, or an error if any step fails.
 pub async fn receive_files(
     stream: &mut TcpStream,
     buffer: &mut [u8],
